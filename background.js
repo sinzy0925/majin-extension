@@ -4,7 +4,7 @@
 // --- グローバル変数 & 接続リスナー ---
 // -----------------------------------------------------------------------------
 const DEPLOYMENT_ID = "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-"; 
-const API_KEY = "AIzaSyBr4eFtrSHtx0eCeow1p56LJUMNFUkZJHs"; 
+const API_KEY = ""; 
 const MODEL   = 'gemini-2.5-flash-lite'
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
 // ★★★★★★★★★★★★★★★★★★★★★
