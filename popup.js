@@ -3,9 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const userPrompt = document.getElementById('user-prompt');
   const statusMessage = document.getElementById('status-message');
   const generateBtn = document.getElementById('generate-button');
+  const regenerateBtn = document.getElementById('regenerate-button'); // regenerate-buttonも取得
   const footerInput = document.getElementById('footer-text');
   const headerLogoInput = document.getElementById('header-logo');
   const closingLogoInput = document.getElementById('closing-logo');
+  const colorPicker = document.getElementById('primary-color');
   
   let port = null;
 
@@ -20,9 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const headerLogoMatch = text.match(/const str_LOGOS_header= '([^']+)'/);
       const closingLogoMatch = text.match(/const str_LOGOS_closing= '([^']+)'/);
       
-      if (footerMatch) footerInput.placeholder = footerMatch[1].replace('${new Date().getFullYear()}', new Date().getFullYear());
-      if (headerLogoMatch) headerLogoInput.placeholder = headerLogoMatch[1];
-      if (closingLogoMatch) closingLogoInput.placeholder = closingLogoMatch[1];
+      if (footerMatch) footerInput.value = footerMatch[1].replace('${new Date().getFullYear()}', new Date().getFullYear());
+      if (headerLogoMatch) headerLogoInput.value = headerLogoMatch[1];
+      if (closingLogoMatch) closingLogoInput.value = closingLogoMatch[1];
     } catch (error) {
       console.error("0.gsの読み込みに失敗しました:", error);
       footerInput.placeholder = "設定の読み込みに失敗";
@@ -42,12 +44,30 @@ document.addEventListener('DOMContentLoaded', () => {
     
     generateBtn.disabled = true;
     statusMessage.textContent = "処理を開始します...";
+
+    if (regenerateBtn) {
+      regenerateBtn.addEventListener('click', () => {
+        disableButtons();
+        statusMessage.textContent = "微調整を反映しています...";
+        
+        const designSettings = {
+          primaryColor: colorPicker.value,
+          // 他の設定もここに追加可能
+        };
+  
+        startConnectionAndPostMessage({
+          action: "regenerateWithNewDesign",
+          designSettings: designSettings
+        });
+      });
+    }
     
     // ユーザーが入力した設定値を取得
     const userSettings = {
       footerText: footerInput.value.trim(),
       headerLogo: headerLogoInput.value.trim(),
-      closingLogo: closingLogoInput.value.trim()
+      closingLogo: closingLogoInput.value.trim(),
+      primaryColor: colorPicker.value.trim()
     };
     
     if (port) port.disconnect();

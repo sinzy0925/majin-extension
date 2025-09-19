@@ -136,7 +136,7 @@ ghostNum: 180
 }
 },
 COLORS: {
-primary_color: '#4285F4', 
+primary_color: str_primary_color, 
 text_primary: '#333333', 
 
 background_white: '#FFFFFF',

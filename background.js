@@ -60,6 +60,9 @@ async function generateSlidesWithAI(userPrompt, userSettings) {
       if (userSettings.closingLogo) {
         file0Source = file0Source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${userSettings.closingLogo}'`);
       }
+      if (userSettings.primaryColor) {
+        file0Source = file0Source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${userSettings.primaryColor}';`);
+      }
     }
     
     const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
