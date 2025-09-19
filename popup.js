@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const footerInput = document.getElementById('footer-text');
   const headerLogoInput = document.getElementById('header-logo');
   const closingLogoInput = document.getElementById('closing-logo');
+  const titleBgInput = document.getElementById('title-bg'); // 追加
+  const contentBgInput = document.getElementById('content-bg'); // 追加
+  const closingBgInput = document.getElementById('closing-bg'); // 追加
   const colorPicker = document.getElementById('primary-color');
   
   let port = null;
@@ -21,10 +24,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const footerMatch = text.match(/const str_FOOTER_TEXT = `([^`]+)`/);
       const headerLogoMatch = text.match(/const str_LOGOS_header= '([^']+)'/);
       const closingLogoMatch = text.match(/const str_LOGOS_closing= '([^']+)'/);
+      const titleBgMatch = text.match(/const str_title_background_image_url= (.*?);/); // 修正
+      const contentBgMatch = text.match(/const str_content_background_image_url= (.*?);/); // 修正
+      const closingBgMatch = text.match(/const str_closing_background_image_url= (.*?);/); // 修正
       
       if (footerMatch) footerInput.value = footerMatch[1].replace('${new Date().getFullYear()}', new Date().getFullYear());
       if (headerLogoMatch) headerLogoInput.value = headerLogoMatch[1];
       if (closingLogoMatch) closingLogoInput.value = closingLogoMatch[1];
+      if (titleBgMatch) titleBgInput.value = titleBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
+      if (contentBgMatch) contentBgInput.value = contentBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
+      if (closingBgMatch) closingBgInput.value = closingBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
     } catch (error) {
       console.error("0.gsの読み込みに失敗しました:", error);
       footerInput.placeholder = "設定の読み込みに失敗";
@@ -67,7 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
       footerText: footerInput.value.trim(),
       headerLogo: headerLogoInput.value.trim(),
       closingLogo: closingLogoInput.value.trim(),
-      primaryColor: colorPicker.value.trim()
+      primaryColor: colorPicker.value,
+      titleBg: titleBgInput.value.trim(),
+      contentBg: contentBgInput.value.trim(),
+      closingBg: closingBgInput.value.trim()
     };
     
     if (port) port.disconnect();

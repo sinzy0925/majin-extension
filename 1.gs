@@ -164,13 +164,13 @@ closing: str_LOGOS_header
 
 BACKGROUNDS: {
     // 全本文スライド共通の背景画像URL。nullの場合はグラデーション背景になる。
-    content_background_image_url: "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png",
+    content_background_image_url: str_content_background_image_url,
     
     // （オプション）タイトルスライド専用の背景画像
-    title_background_image_url: "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png", 
+    title_background_image_url: str_title_background_image_url, 
     
     // （オプション）クロージングスライド専用の背景画像
-    closing_background_image_url: null 
+    closing_background_image_url: str_closing_background_image_url
 },
 
 FOOTER_TEXT: str_FOOTER_TEXT

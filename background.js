@@ -4,8 +4,9 @@
 // --- グローバル変数 & 接続リスナー ---
 // -----------------------------------------------------------------------------
 const DEPLOYMENT_ID = "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-"; 
-const API_KEY = "AIzaSyDcIriGkogQStpQBSI4wURfe7YEzZCXocI"; 
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`;
+const API_KEY = "AIzaSyBr4eFtrSHtx0eCeow1p56LJUMNFUkZJHs"; 
+const MODEL   = 'gemini-2.5-flash-lite'
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
 // ★★★★★★★★★★★★★★★★★★★★★
 
 let activePort = null;
@@ -62,6 +63,17 @@ async function generateSlidesWithAI(userPrompt, userSettings) {
       }
       if (userSettings.primaryColor) {
         file0Source = file0Source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${userSettings.primaryColor}';`);
+      }
+
+      const formatUrl = (url) => url ? `"${url}"` : 'null';
+      if (userSettings.titleBg !== undefined) {
+        file0Source = file0Source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(userSettings.titleBg)};`);
+      }
+      if (userSettings.contentBg !== undefined) {
+        file0Source = file0Source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(userSettings.contentBg)};`);
+      }
+      if (userSettings.closingBg !== undefined) {
+        file0Source = file0Source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(userSettings.closingBg)};`);
       }
     }
     
