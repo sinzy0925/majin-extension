@@ -141,16 +141,17 @@ ghostNum: 180
 }
 },
 COLORS: {
-primary_color: '#4285F4', text_primary: '#333333', 
+primary_color: '#4285F4', 
+text_primary: '#333333', 
 
 background_white: '#FFFFFF',
 background_gray: '#f8f9fa', 
 
   // --- グラデーション用の色定義 ---
   background_gradient_start: '#FFFFFF', // グラデーション開始色 (白)
-  background_gradient_end: '#FFFFFF', // グラデーション開始色 (白)
+  //background_gradient_end: '#FFFFFF', // グラデーション開始色 (白)
   //background_gradient_end: '#FFF0F5',   // グラデーション終了色 (薄いピンク)
-  //background_gradient_end: '#00ffff',   // グラデーション終了色 (アクア)
+  background_gradient_end: '#00ffff',   // グラデーション終了色 (アクア)
 
 faint_gray: '#e8eaed', lane_title_bg: '#f8f9fa',
 table_header_bg: '#f8f9fa', lane_border: '#dadce0', card_bg: '#ffffff',
@@ -171,7 +172,7 @@ BACKGROUNDS: {
     content_background_image_url: "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png",
     
     // （オプション）タイトルスライド専用の背景画像
-    title_background_image_url: null, 
+    title_background_image_url: "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png", 
     
     // （オプション）クロージングスライド専用の背景画像
     closing_background_image_url: null 

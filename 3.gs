@@ -265,8 +265,8 @@ const slideGenerators = {
 function createTitleSlide(slide, data, layout) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
-  //drawSlideBackground(slide, 'title');
+  //drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'title',layout);
 
   const logoRect = layout.getRect('titleSlide.logo');
   try {
@@ -292,7 +292,7 @@ function createTitleSlide(slide, data, layout) {
 function createSectionSlide(slide, data, layout, pageNum) {
   //slide.getBackground().setSolidFill(CONFIG.COLORS.background_gray);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
 
   // 透かし番号：sectionNo > タイトル先頭の数字 > 自動連番
   __SECTION_COUNTER++;
@@ -321,7 +321,7 @@ function createSectionSlide(slide, data, layout, pageNum) {
 function createContentSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'contentSlide', data.title);
   const dy = 0; // アジェンダパターンでは小見出しを使用しない
 
@@ -375,7 +375,7 @@ function createContentSlide(slide, data, layout, pageNum) {
 function createCompareSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'compareSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'compareSlide', data.subhead);
 
@@ -408,7 +408,7 @@ function drawCompareBox(slide, rect, title, items) {
 function createProcessSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'processSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'processSlide', data.subhead);
 
@@ -452,7 +452,7 @@ function createProcessSlide(slide, data, layout, pageNum) {
 function createTimelineSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'timelineSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'timelineSlide', data.subhead);
 
@@ -503,7 +503,7 @@ function createTimelineSlide(slide, data, layout, pageNum) {
 function createDiagramSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'diagramSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'diagramSlide', data.subhead);
 
@@ -580,7 +580,7 @@ function createDiagramSlide(slide, data, layout, pageNum) {
 function createCardsSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'cardsSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'cardsSlide', data.subhead);
 
@@ -634,7 +634,7 @@ function createCardsSlide(slide, data, layout, pageNum) {
 function createHeaderCardsSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'cardsSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'cardsSlide', data.subhead);
 
@@ -682,7 +682,7 @@ function createHeaderCardsSlide(slide, data, layout, pageNum) {
 function createTableSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'tableSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'tableSlide', data.subhead);
 
@@ -748,7 +748,7 @@ function createTableSlide(slide, data, layout, pageNum) {
 function createProgressSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'progressSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'progressSlide', data.subhead);
 
@@ -794,7 +794,7 @@ function createProgressSlide(slide, data, layout, pageNum) {
 function createQuoteSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'quoteSlide', data.title || '引用');
   const dy = drawSubheadIfAny(slide, layout, 'quoteSlide', data.subhead);
 
@@ -819,7 +819,7 @@ function createQuoteSlide(slide, data, layout, pageNum) {
 function createKpiSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'kpiSlide', data.title || '主要指標');
   const dy = drawSubheadIfAny(slide, layout, 'kpiSlide', data.subhead);
 
@@ -867,7 +867,7 @@ function createKpiSlide(slide, data, layout, pageNum) {
 function createClosingSlide(slide, data, layout) {
 slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
 slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
 try {
   const image = slide.insertImage(CONFIG.LOGOS.closing);
   const imgW_pt = layout.pxToPt(450) * layout.scaleX;
@@ -883,7 +883,7 @@ try {
 function createBulletCardsSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'contentSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'contentSlide', data.subhead);
 
@@ -948,7 +948,7 @@ function createBulletCardsSlide(slide, data, layout, pageNum) {
 function createHybridContentSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'hybridContentSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'hybridContentSlide', data.subhead);
 
@@ -1030,7 +1030,7 @@ function createHybridContentSlide(slide, data, layout, pageNum) {
 function createFaqSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'contentSlide', data.title || 'よくあるご質問');
   const dy = 0; // FAQパターンでは小見出しを使用しない
 
@@ -1065,7 +1065,7 @@ function createFaqSlide(slide, data, layout, pageNum) {
 function createCompareCardsSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'compareCardsSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'compareCardsSlide', data.subhead);
 
@@ -1102,7 +1102,7 @@ function createCompareCardsSlide(slide, data, layout, pageNum) {
 function createContentProgressSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'contentProgressSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'contentProgressSlide', data.subhead);
 
@@ -1212,7 +1212,7 @@ function drawCardList(slide, layout, area, cards) {
 function createTimelineCardsSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'timelineCardsSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'timelineCardsSlide', data.subhead);
 
@@ -1314,7 +1314,7 @@ function drawTimelineCardGrid(slide, layout, area, cards) {
 function createIconCardsSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'iconCardsSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'iconCardsSlide', data.subhead);
 
@@ -1367,7 +1367,7 @@ function createIconCardsSlide(slide, data, layout, pageNum) {
 function createStatsCompareSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'statsCompareSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'statsCompareSlide', data.subhead);
 
@@ -1431,7 +1431,7 @@ function createStatsCompareSlide(slide, data, layout, pageNum) {
 function createRoadmapTimelineSlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'roadmapTimelineSlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'roadmapTimelineSlide', data.subhead);
 
@@ -1508,7 +1508,7 @@ function createRoadmapTimelineSlide(slide, data, layout, pageNum) {
 function createImageGallerySlide(slide, data, layout, pageNum) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
   slide.getBackground().setTransparent();
-  drawFauxGradientBackground(slide, layout);
+  drawSlideBackground(slide, 'content',layout);
   drawStandardTitleHeader(slide, layout, 'imageGallerySlide', data.title);
   const dy = drawSubheadIfAny(slide, layout, 'imageGallerySlide', data.subhead);
 
@@ -1956,7 +1956,7 @@ return '#' + ((1 << 24) + (newR << 16) + (newG << 8) + newB).toString(16).slice(
  * @param {GoogleAppsScript.Slides.Slide} slide 対象のスライド
  * @param {string} slideType 'title', 'content', 'closing' などのスライド種別
  */
-function drawSlideBackground(slide, slideType) {
+function drawSlideBackground(slide, slideType,layout) {
   let imageUrl = null;
 
   if (slideType === 'title' && CONFIG.BACKGROUNDS.title_background_image_url) {
@@ -1994,7 +1994,7 @@ function drawSlideBackground(slide, slideType) {
   } else {
     // --- 画像URLが設定されていない場合（従来通り） ---
     slide.getBackground().setTransparent();
-    drawFauxGradientBackground(slide);
+    drawFauxGradientBackground(slide,layout);
   }
 }
 
