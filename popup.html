@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 400px; padding: 10px; font-family: sans-serif; }
+    h3 { text-align: center; margin-bottom: 10px; }
+    textarea { width: 95%; height: 150px; margin-bottom: 10px; font-size: 14px; }
+    button { width: 100%; padding: 12px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; }
+    button:disabled { cursor: not-allowed; }
+    
+    #generate-button { background-color: #4285F4; color: white; margin-bottom: 15px; }
+    #generate-button:disabled { background-color: #a0c3ff; }
+    
+    .regenerate-section { padding-top: 10px; border-top: 1px solid #ccc; }
+    .regenerate-section h4 { margin-top: 0; margin-bottom: 10px; text-align: center; font-weight: normal; color: #555; }
+    .settings { display: flex; align-items: center; margin-bottom: 10px; }
+    .settings label { flex: 1; }
+    
+    #regenerate-button { background-color: #34A853; color: white; }
+    #regenerate-button:disabled { background-color: #a7d7b4; }
+    
+    #status-message { margin-top: 15px; font-size: 14px; min-height: 20px; text-align: center; color: #333; }
+  </style>
+</head>
+<body>
+  <h3>スライド原稿プロンプト</h3>
+  <textarea id="user-prompt" placeholder="ここにスライドにしたい内容を貼り付け..."></textarea>
+  <button id="generate-button">全自動でスライドを生成</button>
+
+  <div class="regenerate-section">
+    <h4>微調整して再生成</h4>
+    <div class="settings">
+      <label for="primary-color">テーマカラー:</label>
+      <input type="color" id="primary-color" value="#4285F4">
+    </div>
+    <button id="regenerate-button">デザインを反映して再生成</button>
+  </div>
+  
+  <p id="status-message"></p>
+  <script src="popup.js"></script>
+</body>
+</html>
