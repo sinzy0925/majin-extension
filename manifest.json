@@ -32,6 +32,7 @@
   "web_accessible_resources": [
     {
       "resources": [
+        "0.gs",
         "1.gs",
         "3.gs",
         "system_prompt.txt"

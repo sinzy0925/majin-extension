@@ -26,6 +26,23 @@
 <body>
   <h3>スライド原稿プロンプト</h3>
   <textarea id="user-prompt" placeholder="ここにスライドにしたい内容を貼り付け..."></textarea>
+  
+  <div class="settings-group">
+    <h4>デザイン設定 (空欄の場合は既定値)</h4>
+    <div class="settings-item">
+      <label for="footer-text">フッターテキスト</label>
+      <input type="text" id="footer-text" placeholder="読み込み中...">
+    </div>
+    <div class="settings-item">
+      <label for="header-logo">ヘッダーロゴURL</label>
+      <input type="text" id="header-logo" placeholder="読み込み中...">
+    </div>
+    <div class="settings-item">
+      <label for="closing-logo">クロージングロゴURL</label>
+      <input type="text" id="closing-logo" placeholder="読み込み中...">
+    </div>
+  </div>
+
   <button id="generate-button">全自動でスライドを生成</button>
 
   <div class="regenerate-section">

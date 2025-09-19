@@ -10,45 +10,63 @@ const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-
 
 let activePort = null;
 
+// 接続リスナーはこれ一つに統一する
 chrome.runtime.onConnect.addListener((port) => {
   console.assert(port.name === "generate-channel");
   activePort = port;
+
   port.onMessage.addListener((msg) => {
     if (msg.action === "generateSlidesWithAI") {
-      generateSlidesWithAI(msg.prompt);
+      // popup.jsから渡された prompt と settings を正しく受け取る
+      generateSlidesWithAI(msg.prompt, msg.settings);
     }
   });
+
   port.onDisconnect.addListener(() => {
     activePort = null;
   });
 });
 
+// 進捗をポップアップに送信するヘルパー関数
 function sendProgress(response) {
   if (activePort) {
     activePort.postMessage(response);
   }
 }
 
-async function generateSlidesWithAI(userPrompt) {
+// メインのスライド生成関数
+async function generateSlidesWithAI(userPrompt, userSettings) {
   try {
     let finalPrompt = userPrompt;
-
-    if (isYouTubeUrl(userPrompt)) {
-      sendProgress({ status: 'progress', message: 'YouTube動画の文字起こしを取得中...'});
-      finalPrompt = await getYouTubeTranscript(userPrompt);
-      sendProgress({ status: 'progress', message: '文字起こしの取得に成功しました。'});
-    }
     
     sendProgress({ status: 'progress', message: 'AIがスライド構成案を作成中...'});
     const slideDataString = await getSlideDataFromAI(finalPrompt);
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを準備中...'});
     const token = await getAuthToken();
+
+    // 1. 元の0.gsを読み込む
+    let file0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
+
+    // 2. ユーザー設定が存在する場合のみ、内容を書き換える
+    // このチェックで 'undefined' のエラーを防ぐ
+    if (userSettings) {
+      if (userSettings.footerText) {
+        file0Source = file0Source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${userSettings.footerText}\`;`);
+      }
+      if (userSettings.headerLogo) {
+        file0Source = file0Source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${userSettings.headerLogo}'`);
+      }
+      if (userSettings.closingLogo) {
+        file0Source = file0Source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${userSettings.closingLogo}'`);
+      }
+    }
+    
     const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
     const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...'});
-    const newSource = createProjectSource(file1Source, slideDataString, file3Source);
+    const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
     const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
     await updateGasProject(SCRIPT_ID, token, newSource);
 
@@ -294,16 +312,22 @@ function getAuthToken() {
   });
 }
 
-function createProjectSource(file1, file2, file3) {
+function createProjectSource(file0,file1, file2, file3) {
   const manifestContent = `
   {
-    "timeZone": "Asia/Tokyo", "dependencies": {}, "exceptionLogging": "STACKDRIVER",
-    "runtimeVersion": "V8", "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
+    "timeZone": "Asia/Tokyo", 
+    "dependencies": {}, 
+    "exceptionLogging": "STACKDRIVER",
+    "runtimeVersion": "V8", 
+    "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
   }`;
   return {
     files: [
-      { name: "appsscript", type: "JSON", source: manifestContent }, { name: "1", type: "SERVER_JS", source: file1 },
-      { name: "2", type: "SERVER_JS", source: file2 }, { name: "3", type: "SERVER_JS", source: file3 }
+      { name: "appsscript", type: "JSON", source: manifestContent }, 
+      { name: "0", type: "SERVER_JS", source: file0 },
+      { name: "1", type: "SERVER_JS", source: file1 },
+      { name: "2", type: "SERVER_JS", source: file2 }, 
+      { name: "3", type: "SERVER_JS", source: file3 }
     ]
   };
 }
