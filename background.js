@@ -2,12 +2,12 @@
 
 // --- デフォルト設定 (初回起動時やリセット時に使用) ---
 const DEFAULT_SETTINGS = {
-  deploymentId: "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-",
+  deploymentId: "AKfycbwmeg1YGDaInVKLQl8zwvPi0j29998Yt8Szy28tD3pg2JV6sIRlwYDa0R6LasdG7pE8dA",
   apiKey: "",
-  aiModel: 'gemini-1.5-flash-latest'
+  aiModel: 'gemini-2.5-flash'
 };
 
-const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
+const SCRIPT_ID = "1S0cQpG39gBfYjuGrhiQx0l7YVnWKDw8qi62R9pJ6g7r4hC0Z22Up4MpB";
 let activePort = null;
 
 // --- 接続リスナー ---
