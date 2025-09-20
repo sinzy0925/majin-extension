@@ -2,12 +2,13 @@
 
 // --- デフォルト設定 (初回起動時やリセット時に使用) ---
 const DEFAULT_SETTINGS = {
-  deploymentId: "AKfycbwmeg1YGDaInVKLQl8zwvPi0j29998Yt8Szy28tD3pg2JV6sIRlwYDa0R6LasdG7pE8dA",
+  scriptId: "",
+  deploymentId: "",
   apiKey: "",
-  aiModel: 'gemini-2.5-flash'
+  aiModel: 'gemini-2.5-flash-lite'
 };
 
-const SCRIPT_ID = "1S0cQpG39gBfYjuGrhiQx0l7YVnWKDw8qi62R9pJ6g7r4hC0Z22Up4MpB";
+//const SCRIPT_ID = "1YUAmadVwnkM44Uld694CgPgmmkEFiSNmjklnhosfW7P6G7D5uAgv0R5o";
 let activePort = null;
 
 // --- 接続リスナー ---
@@ -32,6 +33,7 @@ chrome.runtime.onConnect.addListener((port) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'getDefaultApiSettings') {
     sendResponse({
+      scriptId: DEFAULT_SETTINGS.scriptId,
       deploymentId: DEFAULT_SETTINGS.deploymentId,
       apiKey: DEFAULT_SETTINGS.apiKey,
       aiModel: DEFAULT_SETTINGS.aiModel
@@ -83,14 +85,17 @@ async function generateSlidesWithAI(userPrompt, settings) {
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...'});
     const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
-    await updateGasProject(SCRIPT_ID, token, newSource);
+    //await updateGasProject(SCRIPT_ID, token, newSource);
+    await updateGasProject(settings.scriptId, token, newSource);
 
     sendProgress({ status: 'progress', message: '新バージョンを作成中...'});
-    const versionResponse = await createNewVersion(SCRIPT_ID, token);
+    //const versionResponse = await createNewVersion(SCRIPT_ID, token);
+    const versionResponse = await createNewVersion(settings.scriptId, token);
     const newVersionNumber = versionResponse.versionNumber;
 
     sendProgress({ status: 'progress', message: `デプロイを更新中 (v${newVersionNumber})...` });
-    await updateDeployment(SCRIPT_ID, settings.deploymentId, token, newVersionNumber);
+    //await updateDeployment(SCRIPT_ID, settings.deploymentId, token, newVersionNumber);
+    await updateDeployment(settings.scriptId, settings.deploymentId, token, newVersionNumber);
 
     sendProgress({ status: 'progress', message: 'スライドを生成しています...'});
     const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
@@ -106,13 +111,15 @@ async function generateSlidesWithAI(userPrompt, settings) {
 
 // --- ▼▼▼ 新しい関数 ▼▼▼ ---
 // --- デザインのみ反映して再生成する関数 ---
+
 async function regenerateWithDesign(settings) {
     try {
         sendProgress({ status: 'progress', message: 'デザイン反映の準備を開始...'});
         const token = await getAuthToken();
 
         sendProgress({ status: 'progress', message: '現在のスライド構成(2.gs)を取得中...'});
-        const currentProject = await getGasProjectContent(SCRIPT_ID, token);
+        //const currentProject = await getGasProjectContent(SCRIPT_ID, token);
+        const currentProject = await getGasProjectContent(settings.scriptId, token);
         const slideDataString = currentProject.files.find(f => f.name === '2')?.source;
 
         if (!slideDataString) {
@@ -127,14 +134,14 @@ async function regenerateWithDesign(settings) {
         
         sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...'});
         const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
-        await updateGasProject(SCRIPT_ID, token, newSource);
+        await updateGasProject(settings.scriptId, token, newSource);
 
         sendProgress({ status: 'progress', message: '新バージョンを作成中...'});
-        const versionResponse = await createNewVersion(SCRIPT_ID, token);
+        const versionResponse = await createNewVersion(settings.scriptId, token);
         const newVersionNumber = versionResponse.versionNumber;
 
         sendProgress({ status: 'progress', message: `デプロイを更新中 (v${newVersionNumber})...` });
-        await updateDeployment(SCRIPT_ID, settings.deploymentId, token, newVersionNumber);
+        await updateDeployment(settings.scriptId, settings.deploymentId, token, newVersionNumber);
 
         sendProgress({ status: 'progress', message: 'スライドを再生成しています...'});
         const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
@@ -194,10 +201,16 @@ function getAuthToken() {
 
 function createProjectSource(file0,file1, file2, file3) {
   const manifestContent = `{
-    "timeZone": "Asia/Tokyo", "dependencies": {}, "exceptionLogging": "STACKDRIVER",
-    "runtimeVersion": "V8", "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
-  }`;
-  return {
+    "timeZone": "Asia/Tokyo",
+    "dependencies": {},
+    "exceptionLogging": "STACKDRIVER",
+    "runtimeVersion": "V8",
+    "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" },
+    "oauthScopes": [
+      "https://www.googleapis.com/auth/presentations",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  }`;  return {
     files: [
       { name: "appsscript", type: "JSON", source: manifestContent }, 
       { name: "0", type: "SERVER_JS", source: file0 },

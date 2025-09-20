@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     deploymentId: document.getElementById('deployment-id'),
     apiKey: document.getElementById('api-key'),
     aiModel: document.getElementById('ai-model'),
+    scriptId: document.getElementById('script-id'),
   };
 
   const saveBtn = document.getElementById('save-settings-button');
@@ -117,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const allSettings = getSettingsFromForm();
     
     // 必須項目チェック
-    if (!allSettings.deploymentId || !allSettings.apiKey || !allSettings.aiModel) {
+    if (!allSettings.scriptId || !allSettings.deploymentId || !allSettings.apiKey || !allSettings.aiModel) {
       statusMessage.textContent = "API・連携設定の必須項目を入力してください。";
       if (!collapsible.classList.contains('active')) {
         collapsible.click();
