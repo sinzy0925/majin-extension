@@ -7,62 +7,60 @@
     h3, h4 { text-align: center; margin-bottom: 10px; }
     h4 { font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
     
-    textarea, .settings-item input[type="text"] { /* inputの種類を指定 */
-      width: 100%;
-      padding: 8px;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-      margin-bottom: 10px;
+    textarea, .settings-item input {
+      width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;
     }
-    textarea {
-      height: 150px;
-      resize: vertical;
-    }
+    textarea { height: 150px; resize: vertical; }
 
-    button { width: 100%; padding: 12px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; }
+    button { padding: 12px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; }
     button:disabled { cursor: not-allowed; }
     
-    #generate-button { background-color: #4285F4; color: white; margin-bottom: 15px; }
+    #generate-button { width: 100%; background-color: #4285F4; color: white; margin-bottom: 15px; }
     #generate-button:disabled { background-color: #a0c3ff; }
     
     .settings-group { margin-top: 10px; }
     
-    /* ▼▼▼ ここからが重要な修正箇所 ▼▼▼ */
-    .settings-item {
-      display: flex;         /* 要素を横並びにする */
-      align-items: center;   /* 上下中央揃えにする */
-      margin-bottom: 12px;
-    }
-    .settings-item label {
-      flex: 0 0 120px;      /* ラベルの幅を120pxで固定 (0 0 は伸縮しない設定) */
-      font-size: 14px;
-      color: #333;
-      padding-right: 10px; /* ラベルと入力欄の間に余白 */
-    }
-    .settings-item input[type="text"] {
-      flex: 1;               /* 入力欄は残りの幅を全て使う */
-      margin-bottom: 0;      /* 下の余白をリセット */
-    }
-    /* ▲▲▲ ▲▲▲ */
+    .settings-item { display: flex; align-items: center; margin-bottom: 12px; }
+    .settings-item label { flex: 0 0 160px; font-size: 14px; color: #333; padding-right: 10px; } /* ラベル幅を調整 */
+    .settings-item input { flex: 1; margin-bottom: 0; }
     
     .regenerate-section { padding-top: 10px; border-top: 1px solid #ccc; }
     .settings { display: flex; align-items: center; margin-bottom: 10px; }
     .settings label { flex: 1; }
     
-    #regenerate-button { background-color: #34A853; color: white; }
+    #regenerate-button { width: 100%; background-color: #34A853; color: white; }
     #regenerate-button:disabled { background-color: #a7d7b4; }
     
     #status-message { margin-top: 15px; font-size: 14px; min-height: 20px; text-align: center; color: #333; }
+
+    .action-buttons { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
+    .action-buttons button { width: 150px; font-size: 14px; padding: 8px; }
+    #save-settings-button { background-color: #0F9D58; color: white; }
+    #reset-settings-button { background-color: #6c757d; color: white; }
+    #feedback-message { flex: 1; font-size: 14px; color: #0F9D58; padding-left: 10px; }
+
+    /* ▼▼▼ 変更箇所 ▼▼▼ */
+    .collapsible {
+      cursor: pointer;
+      user-select: none;
+      font-weight: bold;
+      text-align: left;
+    }
+    .collapsible-content {
+      padding-top: 10px;
+      display: none; /* 初期状態は非表示 */
+      overflow: hidden;
+    }
+    /* ▲▲▲ 変更箇所 ▲▲▲ */
+
   </style>
 </head>
 <body>
-  <h3>スライド原稿プロンプト</h3>
+  <h3>スライド原稿入力</h3>
   <textarea id="user-prompt" placeholder="ここにスライドにしたい内容を貼り付け..."></textarea>
   
   <div class="settings-group">
-    <h4>デザイン設定 (空欄の場合は既定値)</h4>
+    <h4>デザイン設定</h4>
     <div class="settings-item">
       <label for="footer-text">フッターテキスト</label>
       <input type="text" id="footer-text" placeholder="読み込み中...">
@@ -91,7 +89,34 @@
       <label for="primary-color">テーマカラー:</label>
       <input type="color" id="primary-color" value="#4285F4">
     </div>
+
+    <!-- ▼▼▼ 変更箇所 ▼▼▼ -->
+    <div class="settings-group">
+      <h4 class="collapsible">▼ API・連携設定 (必須項目です)</h4>
+      <div class="collapsible-content">
+        <div class="settings-item">
+          <label for="deployment-id">Deployment ID</label>
+          <input type="text" id="deployment-id">
+        </div>
+        <div class="settings-item">
+          <label for="api-key">API Key</label>
+          <input type="password" id="api-key">
+        </div>
+        <div class="settings-item">
+          <label for="ai-model">AI Model</label>
+          <input type="text" id="ai-model">
+        </div>
+      </div>
+    </div>
+    <!-- ▲▲▲ 変更箇所 ▲▲▲ -->
+
+    <div class="action-buttons">
+      <button id="save-settings-button">設定を保存</button>
+      <button id="reset-settings-button">初期状態に戻す</button>
+      <span id="feedback-message"></span>
+    </div>
   </div>
+
 
   <button id="generate-button">全自動でスライドを生成</button>
   <p id="status-message"></p>

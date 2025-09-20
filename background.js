@@ -1,24 +1,22 @@
-// background.js (2ボタン対応・connect方式・最終版・省略なし)
+// background.js
 
-// -----------------------------------------------------------------------------
-// --- グローバル変数 & 接続リスナー ---
-// -----------------------------------------------------------------------------
-const DEPLOYMENT_ID = "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-"; 
-const API_KEY = ""; 
-const MODEL   = 'gemini-2.5-flash-lite'
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
-// ★★★★★★★★★★★★★★★★★★★★★
+// --- デフォルト設定 (初回起動時やリセット時に使用) ---
+const DEFAULT_SETTINGS = {
+  deploymentId: "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-",
+  apiKey: "",
+  aiModel: 'gemini-2.5-flash'
+};
 
 let activePort = null;
 
-// 接続リスナーはこれ一つに統一する
+// --- 接続リスナー ---
 chrome.runtime.onConnect.addListener((port) => {
   console.assert(port.name === "generate-channel");
   activePort = port;
 
   port.onMessage.addListener((msg) => {
     if (msg.action === "generateSlidesWithAI") {
-      // popup.jsから渡された prompt と settings を正しく受け取る
+      // popup.jsから渡された prompt と settings を受け取る
       generateSlidesWithAI(msg.prompt, msg.settings);
     }
   });
@@ -28,53 +26,49 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
-// 進捗をポップアップに送信するヘルパー関数
+// --- メッセージリスナー (popup.jsからの同期的な要求に応える) ---
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'getDefaultApiSettings') {
+    sendResponse({
+      deploymentId: DEFAULT_SETTINGS.deploymentId,
+      apiKey: DEFAULT_SETTINGS.apiKey,
+      aiModel: DEFAULT_SETTINGS.aiModel
+    });
+  }
+  return true; // 非同期応答のためにtrueを返す
+});
+
+
+// --- 進捗をポップアップに送信するヘルパー関数 ---
 function sendProgress(response) {
   if (activePort) {
     activePort.postMessage(response);
   }
 }
 
-// メインのスライド生成関数
-async function generateSlidesWithAI(userPrompt, userSettings) {
+// --- メインのスライド生成関数 ---
+async function generateSlidesWithAI(userPrompt, settings) {
   try {
-    let finalPrompt = userPrompt;
-    
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${settings.aiModel}:generateContent?key=${settings.apiKey}`;
+
     sendProgress({ status: 'progress', message: 'AIがスライド構成案を作成中...'});
-    const slideDataString = await getSlideDataFromAI(finalPrompt);
+    const slideDataString = await getSlideDataFromAI(userPrompt, API_URL);
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを準備中...'});
     const token = await getAuthToken();
 
-    // 1. 元の0.gsを読み込む
     let file0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
-
-    // 2. ユーザー設定が存在する場合のみ、内容を書き換える
-    // このチェックで 'undefined' のエラーを防ぐ
-    if (userSettings) {
-      if (userSettings.footerText) {
-        file0Source = file0Source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${userSettings.footerText}\`;`);
-      }
-      if (userSettings.headerLogo) {
-        file0Source = file0Source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${userSettings.headerLogo}'`);
-      }
-      if (userSettings.closingLogo) {
-        file0Source = file0Source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${userSettings.closingLogo}'`);
-      }
-      if (userSettings.primaryColor) {
-        file0Source = file0Source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${userSettings.primaryColor}';`);
-      }
-
+    
+    // デザイン設定で0.gsを書き換える
+    if (settings) {
+      if (settings.footerText) { file0Source = file0Source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${settings.footerText}\`;`); }
+      if (settings.headerLogo) { file0Source = file0Source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
+      if (settings.closingLogo) { file0Source = file0Source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
+      if (settings.primaryColor) { file0Source = file0Source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
       const formatUrl = (url) => url ? `"${url}"` : 'null';
-      if (userSettings.titleBg !== undefined) {
-        file0Source = file0Source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(userSettings.titleBg)};`);
-      }
-      if (userSettings.contentBg !== undefined) {
-        file0Source = file0Source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(userSettings.contentBg)};`);
-      }
-      if (userSettings.closingBg !== undefined) {
-        file0Source = file0Source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(userSettings.closingBg)};`);
-      }
+      if (settings.titleBg !== undefined) { file0Source = file0Source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(settings.titleBg)};`); }
+      if (settings.contentBg !== undefined) { file0Source = file0Source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(settings.contentBg)};`); }
+      if (settings.closingBg !== undefined) { file0Source = file0Source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`); }
     }
     
     const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
@@ -90,11 +84,10 @@ async function generateSlidesWithAI(userPrompt, userSettings) {
     const newVersionNumber = versionResponse.versionNumber;
 
     sendProgress({ status: 'progress', message: `デプロイを更新中 (v${newVersionNumber})...` });
-    const DEPLOYMENT_ID = "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-";
-    await updateDeployment(SCRIPT_ID, DEPLOYMENT_ID, token, newVersionNumber);
+    await updateDeployment(SCRIPT_ID, settings.deploymentId, token, newVersionNumber);
 
     sendProgress({ status: 'progress', message: 'スライドを生成しています...'});
-    const WEB_APP_URL = `https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec`;
+    const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
     const result = await executeWebApp(WEB_APP_URL);
     
     sendProgress({ status: 'success', message: '完了: ' + result.message });
@@ -105,194 +98,17 @@ async function generateSlidesWithAI(userPrompt, userSettings) {
   }
 }
 
-// --- YouTube文字起こし関連 ---
-function isYouTubeUrl(url) {
-  const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
-  return youtubeRegex.test(url);
-}
-
-function getVideoId(url) {
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.hostname === "youtu.be") return urlObj.pathname.slice(1);
-    return urlObj.searchParams.get("v");
-  } catch (e) { return null; }
-}
-
-async function getYouTubeTranscript(url) {
-  try {
-    const videoId = getVideoId(url);
-    if (!videoId) throw new Error("有効なYouTube動画のURLではありません。");
-
-    // 1. 現在アクティブなウィンドウのアクティブなタブを取得する
-    const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-    // 2. そのタブがYouTubeの動画ページであるか確認する
-    if (!activeTab || !activeTab.url || !isYouTubeUrl(activeTab.url)) {
-      throw new Error("YouTubeの動画ページをアクティブにしてから実行してください。");
-    }
-    
-    // 3. アクティブなタブのContent Scriptに直接メッセージを送信する
-    const response = await chrome.tabs.sendMessage(activeTab.id, {
-      type: 'get-youtube-transcript-from-page',
-      videoId: videoId
-    });
-
-    // 4. Content Scriptからの応答を検証して返す
-    if (response && response.success) {
-      return response.transcript;
-    } else {
-      throw new Error(response.error || "Content Scriptから予期せぬ応答がありました。");
-    }
-
-  } catch (error) {
-    // エラーメッセージに、どのURLで試したかの情報を追加してデバッグしやすくする
-    console.error(`URL: ${url} の文字起こし取得中にエラー:`, error);
-    throw error;
-  }
-}
-
-chrome.runtime.onConnect.addListener((port) => {
-  console.assert(port.name === "generate-channel");
-  activePort = port;
-
-  port.onMessage.addListener((msg) => {
-    if (msg.action === "generateSlidesWithAI") {
-      generateSlidesWithAI(msg.prompt); 
-    } else if (msg.action === "regenerateWithNewDesign") {
-      regenerateWithNewDesign(msg.designSettings);
-    }
-  });
-
-  port.onDisconnect.addListener(() => {
-    activePort = null;
-  });
-});
 
 // -----------------------------------------------------------------------------
-// --- ヘルパー関数 ---
+// --- 補助関数群 (変更なしの部分は省略) ---
 // -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-// --- メイン処理フロー ②：微調整して再生成 (AIなし) ---
-// -----------------------------------------------------------------------------
-
-async function regenerateWithNewDesign(designSettings) {
-  try {
-    const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
-    const WEB_APP_URL = `https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec`;
-    
-    sendProgress({ status: 'progress', message: 'STEP 1/7: 認証...' });
-    const token = await getAuthToken();
-
-    sendProgress({ status: 'progress', message: 'STEP 2/7: 現在の2.gsを読込中...' });
-    const currentProject = await getGasProjectContent(SCRIPT_ID, token);
-    const file2Source = currentProject.files.find(f => f.name === '2').source;
-
-    sendProgress({ status: 'progress', message: 'STEP 3/7: 新デザイン設定を準備中...' });
-    let file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
-    if (designSettings.primaryColor) {
-      file1Source = file1Source.replace(/primary_color: '.*?',/, `primary_color: '${designSettings.primaryColor}',`);
-    }
-
-    const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
-
-    sendProgress({ status: 'progress', message: 'STEP 4/7: GASコード(デザインのみ)更新...' });
-    const newSource = createProjectSource(file1Source, file2Source, file3Source);
-    await updateGasProject(SCRIPT_ID, token, newSource);
-
-    sendProgress({ status: 'progress', message: 'STEP 5/7: 新バージョン作成...' });
-    const versionResponse = await createNewVersion(SCRIPT_ID, token);
-    const newVersionNumber = versionResponse.versionNumber;
-
-    sendProgress({ status: 'progress', message: `STEP 6/7: デプロイ更新 (v${newVersionNumber})...` });
-    await updateDeployment(SCRIPT_ID, DEPLOYMENT_ID, token, newVersionNumber);
-
-    sendProgress({ status: 'progress', message: 'STEP 7/7: スライド再生成...' });
-    const result = await executeWebApp(WEB_APP_URL);
-    
-    sendProgress({ status: 'success', message: '完了: 微調整が反映されました。' });
-
-  } catch (error) {
-    console.error("【CRITICAL ERROR in regenerateWithNewDesign】:", error);
-    sendProgress({ status: 'error', message: error.message || '不明なエラーです。' });
-  }
-}
-
-function sendProgress(response) {
-  if (activePort) {
-    activePort.postMessage(response);
-  }
-}
-
-// -----------------------------------------------------------------------------
-// --- メイン処理フロー ①：スライド生成 (AIあり) ---
-// -----------------------------------------------------------------------------
-
-async function generateSlidesWithAIaaa(userPrompt) {
-  try {
-    const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
-    const WEB_APP_URL = `https://script.google.com/macros/s/${DEPLOYMENT_ID}/exec`;
-
-    let finalPrompt = userPrompt;
-
-    if (isYouTubeUrl(userPrompt)) {
-      sendProgress({ status: 'progress', message: 'STEP 1/9: YouTube動画の文字起こしを取得中...'});
-      try {
-        finalPrompt = await getYouTubeTranscript(userPrompt);
-        sendProgress({ status: 'progress', message: '文字起こしの取得に成功しました。'});
-      } catch (error) {
-        sendProgress({ status: 'error', message: error.message });
-        return;
-      }
-    }
-
-    sendProgress({ status: 'progress', message: 'STEP 1/8: AIデータ生成...' });
-    const slideDataString = await getSlideDataFromAI(finalPrompt);
-
-    sendProgress({ status: 'progress', message: 'STEP 2/8: 1.gs読込...' });
-    const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
-
-    sendProgress({ status: 'progress', message: 'STEP 3/8: 3.gs読込...' });
-    const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
-
-    sendProgress({ status: 'progress', message: 'STEP 4/8: 認証...' });
-    const token = await getAuthToken();
-
-    sendProgress({ status: 'progress', message: 'STEP 5/8: GASコード更新...' });
-    const newSource = createProjectSource(file1Source, slideDataString, file3Source);
-    await updateGasProject(SCRIPT_ID, token, newSource);
-
-    sendProgress({ status: 'progress', message: 'STEP 6/8: 新バージョン作成...' });
-    const versionResponse = await createNewVersion(SCRIPT_ID, token);
-    const newVersionNumber = versionResponse.versionNumber;
-
-    sendProgress({ status: 'progress', message: `STEP 7/8: デプロイ更新 (v${newVersionNumber})...` });
-    await updateDeployment(SCRIPT_ID, DEPLOYMENT_ID, token, newVersionNumber);
-
-    sendProgress({ status: 'progress', message: 'STEP 8/8: スライド生成...' });
-    const result = await executeWebApp(WEB_APP_URL);
-    
-    sendProgress({ status: 'success', message: '完了: ' + result.message });
-
-  } catch (error) {
-    console.error("【CRITICAL ERROR in generateSlidesWithAI】:", error);
-    sendProgress({ status: 'error', message: error.message || '不明なエラーです。' });
-  }
-}
-
-
-
-// -----------------------------------------------------------------------------
-// --- 補助関数群 ---
-// -----------------------------------------------------------------------------
-
-async function getSlideDataFromAI(userPrompt) {
+async function getSlideDataFromAI(userPrompt, apiUrl) {
   const systemPrompt = await fetch(chrome.runtime.getURL('system_prompt.txt')).then(res => res.text());
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000);
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(apiUrl, { // 引数で受け取ったURLを使用
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: systemPrompt + "\n\n---\n\n" + userPrompt }] }],
@@ -354,13 +170,6 @@ async function updateGasProject(scriptId, token, source) {
     body: JSON.stringify(source)
   });
   if (!response.ok) { const errorData = await response.json(); throw new Error(`GASプロジェクトの更新に失敗: ${errorData.error.message}`); }
-  return await response.json();
-}
-
-async function getGasProjectContent(scriptId, token) {
-  const url = `https://script.googleapis.com/v1/projects/${scriptId}/content?fields=files(name,source)`;
-  const response = await fetch(url, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
-  if (!response.ok) { const errorData = await response.json(); throw new Error(`GASプロジェクト内容の取得に失敗: ${errorData.error.message}`); }
   return await response.json();
 }
 

@@ -3,48 +3,134 @@ document.addEventListener('DOMContentLoaded', () => {
   const userPrompt = document.getElementById('user-prompt');
   const statusMessage = document.getElementById('status-message');
   const generateBtn = document.getElementById('generate-button');
-  const regenerateBtn = document.getElementById('regenerate-button'); // regenerate-buttonも取得
-  const footerInput = document.getElementById('footer-text');
-  const headerLogoInput = document.getElementById('header-logo');
-  const closingLogoInput = document.getElementById('closing-logo');
-  const titleBgInput = document.getElementById('title-bg'); // 追加
-  const contentBgInput = document.getElementById('content-bg'); // 追加
-  const closingBgInput = document.getElementById('closing-bg'); // 追加
-  const colorPicker = document.getElementById('primary-color');
+  const regenerateBtn = document.getElementById('regenerate-button');
   
+  // デザイン設定
+  const designInputs = {
+    footerText: document.getElementById('footer-text'),
+    headerLogo: document.getElementById('header-logo'),
+    closingLogo: document.getElementById('closing-logo'),
+    titleBg: document.getElementById('title-bg'),
+    contentBg: document.getElementById('content-bg'),
+    closingBg: document.getElementById('closing-bg'),
+    primaryColor: document.getElementById('primary-color'),
+  };
+
+  // API設定
+  const apiInputs = {
+    deploymentId: document.getElementById('deployment-id'),
+    apiKey: document.getElementById('api-key'),
+    aiModel: document.getElementById('ai-model'),
+  };
+
+  const saveBtn = document.getElementById('save-settings-button');
+  const resetBtn = document.getElementById('reset-settings-button');
+  const feedbackMessage = document.getElementById('feedback-message');
+  
+  // 折りたたみメニュー
+  const collapsible = document.querySelector('.collapsible');
+  const collapsibleContent = document.querySelector('.collapsible-content');
+
+  const SETTINGS_KEY = 'userAppSettings'; // キー名を変更
   let port = null;
 
-  // --- 機能: 0.gsからデフォルト設定を読み込み、プレースホルダーに表示 ---
-  async function loadDefaultSettings() {
-    try {
-      const response = await fetch(chrome.runtime.getURL('0.gs'));
-      const text = await response.text();
-      
-      // 正規表現で各変数の値を抽出
-      const footerMatch = text.match(/const str_FOOTER_TEXT = `([^`]+)`/);
-      const headerLogoMatch = text.match(/const str_LOGOS_header= '([^']+)'/);
-      const closingLogoMatch = text.match(/const str_LOGOS_closing= '([^']+)'/);
-      const titleBgMatch = text.match(/const str_title_background_image_url= (.*?);/); // 修正
-      const contentBgMatch = text.match(/const str_content_background_image_url= (.*?);/); // 修正
-      const closingBgMatch = text.match(/const str_closing_background_image_url= (.*?);/); // 修正
-      
-      if (footerMatch) footerInput.value = footerMatch[1].replace('${new Date().getFullYear()}', new Date().getFullYear());
-      if (headerLogoMatch) headerLogoInput.value = headerLogoMatch[1];
-      if (closingLogoMatch) closingLogoInput.value = closingLogoMatch[1];
-      if (titleBgMatch) titleBgInput.value = titleBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
-      if (contentBgMatch) contentBgInput.value = contentBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
-      if (closingBgMatch) closingBgInput.value = closingBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
-    } catch (error) {
-      console.error("0.gsの読み込みに失敗しました:", error);
-      footerInput.placeholder = "設定の読み込みに失敗";
+  // --- 機能: 折りたたみメニューの制御 ---
+  collapsible.addEventListener('click', () => {
+    const isExpanded = collapsible.classList.toggle('active');
+    collapsibleContent.style.display = isExpanded ? 'block' : 'none';
+    collapsible.textContent = isExpanded ? '▲ API・連携設定 (上級者向け)' : '▼ API・連携設定 (上級者向け)';
+  });
+
+  // --- 機能: フィードバックメッセージを表示 ---
+  function showFeedback(message, isError = false) {
+    feedbackMessage.textContent = message;
+    feedbackMessage.style.color = isError ? '#D93025' : '#0F9D58';
+    setTimeout(() => {
+      feedbackMessage.textContent = '';
+    }, 4000);
+  }
+
+  // --- 機能: デフォルト設定の取得 ---
+  async function getDefaultSettings() {
+    // 0.gsからデザインのデフォルト値を取得
+    const designDefaults = await (async () => {
+      try {
+        const res = await fetch(chrome.runtime.getURL('0.gs'));
+        const text = await res.text();
+        return {
+          footerText: (text.match(/const str_FOOTER_TEXT = `([^`]+)`/) || [])[1]?.replace('${new Date().getFullYear()}', new Date().getFullYear()) || '',
+          headerLogo: (text.match(/const str_LOGOS_header= '([^']+)'/) || [])[1] || '',
+          closingLogo: (text.match(/const str_LOGOS_closing= '([^']+)'/) || [])[1] || '',
+          primaryColor: (text.match(/const str_primary_color= '([^']+)';/) || [])[1] || '#4285F4',
+          titleBg: (text.match(/const str_title_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',
+          contentBg: (text.match(/const str_content_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',
+          closingBg: (text.match(/const str_closing_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || ''
+        };
+      } catch (e) { return {}; }
+    })();
+
+    // background.jsからAPIのデフォルト値を取得
+    const apiDefaults = await chrome.runtime.sendMessage({ action: "getDefaultApiSettings" });
+    
+    return { ...designDefaults, ...apiDefaults };
+  }
+
+  // --- 機能: 設定オブジェクトをフォームに反映 ---
+  function applySettingsToForm(settings) {
+    if (!settings) return;
+    Object.keys(designInputs).forEach(key => { designInputs[key].value = settings[key] || ''; });
+    Object.keys(apiInputs).forEach(key => { apiInputs[key].value = settings[key] || ''; });
+  }
+  
+  // --- 機能: 現在のフォームの内容から設定オブジェクトを取得 ---
+  function getSettingsFromForm() {
+    const settings = {};
+    Object.keys(designInputs).forEach(key => { settings[key] = designInputs[key].value.trim(); });
+    Object.keys(apiInputs).forEach(key => { settings[key] = apiInputs[key].value.trim(); });
+    return settings;
+  }
+
+  // --- メインの読み込み処理 ---
+  async function loadSettings() {
+    const saved = (await chrome.storage.local.get([SETTINGS_KEY]))[SETTINGS_KEY];
+    if (saved && Object.keys(saved).length > 0) {
+      applySettingsToForm(saved);
+    } else {
+      const defaults = await getDefaultSettings();
+      applySettingsToForm(defaults);
     }
   }
 
-  // ポップアップが開かれたらデフォルト設定を読み込む
-  loadDefaultSettings();
+  loadSettings();
+
+  // --- イベントリスナー: 保存ボタン ---
+  saveBtn.addEventListener('click', () => {
+    const settingsToSave = getSettingsFromForm();
+    chrome.storage.local.set({ [SETTINGS_KEY]: settingsToSave }, () => {
+      showFeedback('✓ 設定を保存しました');
+    });
+  });
+
+  // --- イベントリスナー: リセットボタン ---
+  resetBtn.addEventListener('click', () => {
+    chrome.storage.local.remove([SETTINGS_KEY], async () => {
+      const defaults = await getDefaultSettings();
+      applySettingsToForm(defaults);
+      showFeedback('設定をリセットしました');
+    });
+  });
 
   // --- イベントリスナー: 生成ボタンクリック ---
   generateBtn.addEventListener('click', () => {
+    const allSettings = getSettingsFromForm();
+    
+    // 必須項目チェック
+    if (!allSettings.deploymentId || !allSettings.apiKey || !allSettings.aiModel) {
+      statusMessage.textContent = "API・連携設定の必須項目を入力してください。";
+      collapsible.click(); // 設定エリアを開いてユーザーに知らせる
+      return;
+    }
+    
     const promptText = userPrompt.value;
     if (!promptText.trim()) {
       statusMessage.textContent = "プロンプトを入力してください。";
@@ -52,35 +138,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     generateBtn.disabled = true;
+    regenerateBtn.disabled = true;
     statusMessage.textContent = "処理を開始します...";
-
-    if (regenerateBtn) {
-      regenerateBtn.addEventListener('click', () => {
-        disableButtons();
-        statusMessage.textContent = "微調整を反映しています...";
-        
-        const designSettings = {
-          primaryColor: colorPicker.value,
-          // 他の設定もここに追加可能
-        };
-  
-        startConnectionAndPostMessage({
-          action: "regenerateWithNewDesign",
-          designSettings: designSettings
-        });
-      });
-    }
-    
-    // ユーザーが入力した設定値を取得
-    const userSettings = {
-      footerText: footerInput.value.trim(),
-      headerLogo: headerLogoInput.value.trim(),
-      closingLogo: closingLogoInput.value.trim(),
-      primaryColor: colorPicker.value,
-      titleBg: titleBgInput.value.trim(),
-      contentBg: contentBgInput.value.trim(),
-      closingBg: closingBgInput.value.trim()
-    };
     
     if (port) port.disconnect();
     port = chrome.runtime.connect({ name: "generate-channel" });
@@ -89,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       statusMessage.textContent = msg.message;
       if (msg.status === 'success' || msg.status === 'error') {
         generateBtn.disabled = false;
+        regenerateBtn.disabled = false;
         if (port) port.disconnect();
       }
     });
@@ -98,14 +158,19 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.textContent = "エラー: 接続が予期せず切れました。";
       }
       generateBtn.disabled = false;
+      regenerateBtn.disabled = false;
       port = null;
     });
     
-    // background.jsにプロンプトとユーザー設定を渡す
+    // background.jsにプロンプトと全設定を渡す
     port.postMessage({
       action: "generateSlidesWithAI",
       prompt: promptText,
-      settings: userSettings 
+      settings: allSettings 
     });
   });
+
+  if (regenerateBtn) {
+    // 再生成ボタンは今回スコープ外
+  }
 });

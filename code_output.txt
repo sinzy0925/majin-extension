@@ -1,6 +1,6 @@
-現在、以下のアプリは動いています。
-ポップアップ画面に、以下の0.gsの内容を出力して、それぞれの変数の値を修正できるようにしたい
-もとの値を修正しなければ、そのままで、修正したら修正した箇所だけが変わるようにしたい
+以下のアプリについて、詳細に理解してください
+
+
 
 ---
 
@@ -9,8 +9,13 @@
 - ファイル名: 0.gs
 - 内容:
 const str_FOOTER_TEXT = `© ${new Date().getFullYear()} Google Inc.`;
-const str_LOGOS_header= 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png'
-const str_LOGOS_closing= 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png'
+const str_LOGOS_header= 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png';
+const str_LOGOS_closing= 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png';
+const str_primary_color= '#4285F4';
+const str_content_background_image_url= null;
+const str_title_background_image_url= "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png"; 
+const str_closing_background_image_url= null; 
+
 
 
 
@@ -158,7 +163,7 @@ ghostNum: 180
 }
 },
 COLORS: {
-primary_color: '#4285F4', 
+primary_color: str_primary_color, 
 text_primary: '#333333', 
 
 background_white: '#FFFFFF',
@@ -186,13 +191,13 @@ closing: str_LOGOS_header
 
 BACKGROUNDS: {
     // 全本文スライド共通の背景画像URL。nullの場合はグラデーション背景になる。
-    content_background_image_url: "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png",
+    content_background_image_url: str_content_background_image_url,
     
     // （オプション）タイトルスライド専用の背景画像
-    title_background_image_url: "https://raw.githubusercontent.com/sinzy0925/logo/refs/heads/main/bg01.png", 
+    title_background_image_url: str_title_background_image_url, 
     
     // （オプション）クロージングスライド専用の背景画像
-    closing_background_image_url: null 
+    closing_background_image_url: str_closing_background_image_url
 },
 
 FOOTER_TEXT: str_FOOTER_TEXT
@@ -2280,52 +2285,84 @@ function formatLog(data) {
 // --- グローバル変数 & 接続リスナー ---
 // -----------------------------------------------------------------------------
 const DEPLOYMENT_ID = "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-"; 
-const API_KEY = "AIzaSyDcIriGkogQStpQBSI4wURfe7YEzZCXocI"; 
-const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${API_KEY}`;
+const API_KEY = ""; 
+const MODEL   = 'gemini-2.5-flash-lite'
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
 // ★★★★★★★★★★★★★★★★★★★★★
 
 let activePort = null;
 
+// 接続リスナーはこれ一つに統一する
 chrome.runtime.onConnect.addListener((port) => {
   console.assert(port.name === "generate-channel");
   activePort = port;
+
   port.onMessage.addListener((msg) => {
     if (msg.action === "generateSlidesWithAI") {
-      generateSlidesWithAI(msg.prompt);
+      // popup.jsから渡された prompt と settings を正しく受け取る
+      generateSlidesWithAI(msg.prompt, msg.settings);
     }
   });
+
   port.onDisconnect.addListener(() => {
     activePort = null;
   });
 });
 
+// 進捗をポップアップに送信するヘルパー関数
 function sendProgress(response) {
   if (activePort) {
     activePort.postMessage(response);
   }
 }
 
-async function generateSlidesWithAI(userPrompt) {
+// メインのスライド生成関数
+async function generateSlidesWithAI(userPrompt, userSettings) {
   try {
     let finalPrompt = userPrompt;
-
-    if (isYouTubeUrl(userPrompt)) {
-      sendProgress({ status: 'progress', message: 'YouTube動画の文字起こしを取得中...'});
-      finalPrompt = await getYouTubeTranscript(userPrompt);
-      sendProgress({ status: 'progress', message: '文字起こしの取得に成功しました。'});
-    }
     
     sendProgress({ status: 'progress', message: 'AIがスライド構成案を作成中...'});
     const slideDataString = await getSlideDataFromAI(finalPrompt);
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを準備中...'});
     const token = await getAuthToken();
-    const file0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
+
+    // 1. 元の0.gsを読み込む
+    let file0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
+
+    // 2. ユーザー設定が存在する場合のみ、内容を書き換える
+    // このチェックで 'undefined' のエラーを防ぐ
+    if (userSettings) {
+      if (userSettings.footerText) {
+        file0Source = file0Source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${userSettings.footerText}\`;`);
+      }
+      if (userSettings.headerLogo) {
+        file0Source = file0Source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${userSettings.headerLogo}'`);
+      }
+      if (userSettings.closingLogo) {
+        file0Source = file0Source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${userSettings.closingLogo}'`);
+      }
+      if (userSettings.primaryColor) {
+        file0Source = file0Source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${userSettings.primaryColor}';`);
+      }
+
+      const formatUrl = (url) => url ? `"${url}"` : 'null';
+      if (userSettings.titleBg !== undefined) {
+        file0Source = file0Source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(userSettings.titleBg)};`);
+      }
+      if (userSettings.contentBg !== undefined) {
+        file0Source = file0Source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(userSettings.contentBg)};`);
+      }
+      if (userSettings.closingBg !== undefined) {
+        file0Source = file0Source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(userSettings.closingBg)};`);
+      }
+    }
+    
     const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
     const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...'});
-    const newSource = createProjectSource(file0Source,file1Source, slideDataString, file3Source);
+    const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
     const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
     await updateGasProject(SCRIPT_ID, token, newSource);
 
@@ -2884,17 +2921,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 <head>
   <meta charset="utf-8">
   <style>
-    body { width: 400px; padding: 10px; font-family: sans-serif; }
-    h3 { text-align: center; margin-bottom: 10px; }
-    textarea { width: 95%; height: 150px; margin-bottom: 10px; font-size: 14px; }
+    body { width: 600px; padding: 10px; font-family: sans-serif; box-sizing: border-box; }
+    h3, h4 { text-align: center; margin-bottom: 10px; }
+    h4 { font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+    
+    textarea, .settings-item input[type="text"] { /* inputの種類を指定 */
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    textarea {
+      height: 150px;
+      resize: vertical;
+    }
+
     button { width: 100%; padding: 12px; font-size: 16px; cursor: pointer; border: none; border-radius: 4px; }
     button:disabled { cursor: not-allowed; }
     
     #generate-button { background-color: #4285F4; color: white; margin-bottom: 15px; }
     #generate-button:disabled { background-color: #a0c3ff; }
     
+    .settings-group { margin-top: 10px; }
+    
+    /* ▼▼▼ ここからが重要な修正箇所 ▼▼▼ */
+    .settings-item {
+      display: flex;         /* 要素を横並びにする */
+      align-items: center;   /* 上下中央揃えにする */
+      margin-bottom: 12px;
+    }
+    .settings-item label {
+      flex: 0 0 120px;      /* ラベルの幅を120pxで固定 (0 0 は伸縮しない設定) */
+      font-size: 14px;
+      color: #333;
+      padding-right: 10px; /* ラベルと入力欄の間に余白 */
+    }
+    .settings-item input[type="text"] {
+      flex: 1;               /* 入力欄は残りの幅を全て使う */
+      margin-bottom: 0;      /* 下の余白をリセット */
+    }
+    /* ▲▲▲ ▲▲▲ */
+    
     .regenerate-section { padding-top: 10px; border-top: 1px solid #ccc; }
-    .regenerate-section h4 { margin-top: 0; margin-bottom: 10px; text-align: center; font-weight: normal; color: #555; }
     .settings { display: flex; align-items: center; margin-bottom: 10px; }
     .settings label { flex: 1; }
     
@@ -2907,18 +2978,47 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 <body>
   <h3>スライド原稿プロンプト</h3>
   <textarea id="user-prompt" placeholder="ここにスライドにしたい内容を貼り付け..."></textarea>
-  <button id="generate-button">全自動でスライドを生成</button>
-
-  <div class="regenerate-section">
-    <h4>微調整して再生成</h4>
+  
+  <div class="settings-group">
+    <h4>デザイン設定 (空欄の場合は既定値)</h4>
+    <div class="settings-item">
+      <label for="footer-text">フッターテキスト</label>
+      <input type="text" id="footer-text" placeholder="読み込み中...">
+    </div>
+    <div class="settings-item">
+      <label for="header-logo">ヘッダーロゴURL</label>
+      <input type="text" id="header-logo" placeholder="読み込み中...">
+    </div>
+    <div class="settings-item">
+      <label for="closing-logo">クロージングロゴURL</label>
+      <input type="text" id="closing-logo" placeholder="読み込み中...">
+    </div>
+    <div class="settings-item">
+      <label for="title-bg">タイトル背景画像URL</label>
+      <input type="text" id="title-bg">
+    </div>
+    <div class="settings-item">
+      <label for="content-bg">本文背景画像URL</label>
+      <input type="text" id="content-bg">
+    </div>
+    <div class="settings-item">
+      <label for="closing-bg">最終頁 背景画像URL</label>
+      <input type="text" id="closing-bg">
+    </div>
     <div class="settings">
       <label for="primary-color">テーマカラー:</label>
       <input type="color" id="primary-color" value="#4285F4">
     </div>
+  </div>
+
+  <button id="generate-button">全自動でスライドを生成</button>
+  <p id="status-message"></p>
+
+  <div class="regenerate-section">
+    <h4>微調整して再生成</h4>
     <button id="regenerate-button">デザインを反映して再生成</button>
   </div>
   
-  <p id="status-message"></p>
   <script src="popup.js"></script>
 </body>
 </html>
@@ -2930,18 +3030,52 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 - フォルダ名: .
 - ファイル名: popup.js
 - 内容:
-// popup.js (2ボタン対応・connect方式・最終版)
-
 document.addEventListener('DOMContentLoaded', () => {
+  // --- DOM要素の取得 ---
   const userPrompt = document.getElementById('user-prompt');
   const statusMessage = document.getElementById('status-message');
   const generateBtn = document.getElementById('generate-button');
-  const regenerateBtn = document.getElementById('regenerate-button');
+  const regenerateBtn = document.getElementById('regenerate-button'); // regenerate-buttonも取得
+  const footerInput = document.getElementById('footer-text');
+  const headerLogoInput = document.getElementById('header-logo');
+  const closingLogoInput = document.getElementById('closing-logo');
+  const titleBgInput = document.getElementById('title-bg'); // 追加
+  const contentBgInput = document.getElementById('content-bg'); // 追加
+  const closingBgInput = document.getElementById('closing-bg'); // 追加
   const colorPicker = document.getElementById('primary-color');
   
   let port = null;
 
-  // --- ボタン①：スライド生成 (AIあり) ---
+  // --- 機能: 0.gsからデフォルト設定を読み込み、プレースホルダーに表示 ---
+  async function loadDefaultSettings() {
+    try {
+      const response = await fetch(chrome.runtime.getURL('0.gs'));
+      const text = await response.text();
+      
+      // 正規表現で各変数の値を抽出
+      const footerMatch = text.match(/const str_FOOTER_TEXT = `([^`]+)`/);
+      const headerLogoMatch = text.match(/const str_LOGOS_header= '([^']+)'/);
+      const closingLogoMatch = text.match(/const str_LOGOS_closing= '([^']+)'/);
+      const titleBgMatch = text.match(/const str_title_background_image_url= (.*?);/); // 修正
+      const contentBgMatch = text.match(/const str_content_background_image_url= (.*?);/); // 修正
+      const closingBgMatch = text.match(/const str_closing_background_image_url= (.*?);/); // 修正
+      
+      if (footerMatch) footerInput.value = footerMatch[1].replace('${new Date().getFullYear()}', new Date().getFullYear());
+      if (headerLogoMatch) headerLogoInput.value = headerLogoMatch[1];
+      if (closingLogoMatch) closingLogoInput.value = closingLogoMatch[1];
+      if (titleBgMatch) titleBgInput.value = titleBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
+      if (contentBgMatch) contentBgInput.value = contentBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
+      if (closingBgMatch) closingBgInput.value = closingBgMatch[1].replace(/"/g, '').replace(/'/g, '').replace('null', '');
+    } catch (error) {
+      console.error("0.gsの読み込みに失敗しました:", error);
+      footerInput.placeholder = "設定の読み込みに失敗";
+    }
+  }
+
+  // ポップアップが開かれたらデフォルト設定を読み込む
+  loadDefaultSettings();
+
+  // --- イベントリスナー: 生成ボタンクリック ---
   generateBtn.addEventListener('click', () => {
     const promptText = userPrompt.value;
     if (!promptText.trim()) {
@@ -2949,79 +3083,63 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    disableButtons();
+    generateBtn.disabled = true;
     statusMessage.textContent = "処理を開始します...";
-    startConnectionAndPostMessage({
-      action: "generateSlidesWithAI",
-      prompt: promptText
-    });
-  });
 
-  // --- ボタン②：微調整して再生成 (AIなし) ---
-  regenerateBtn.addEventListener('click', () => {
-    disableButtons();
-    statusMessage.textContent = "微調整を反映しています...";
-    
-    const designSettings = {
-      primaryColor: colorPicker.value
-      // (ここにロゴURLなどを追加するなら `logoUrl: document.getElementById('logo-url').value` のようにする)
-    };
-
-    startConnectionAndPostMessage({
-      action: "regenerateWithNewDesign",
-      designSettings: designSettings
-    });
-  });
-
-  // --- バックグラウンドとの通信を開始する共通関数 ---
-  function startConnectionAndPostMessage(message) {
-    if (port) {
-      port.disconnect();
+    if (regenerateBtn) {
+      regenerateBtn.addEventListener('click', () => {
+        disableButtons();
+        statusMessage.textContent = "微調整を反映しています...";
+        
+        const designSettings = {
+          primaryColor: colorPicker.value,
+          // 他の設定もここに追加可能
+        };
+  
+        startConnectionAndPostMessage({
+          action: "regenerateWithNewDesign",
+          designSettings: designSettings
+        });
+      });
     }
+    
+    // ユーザーが入力した設定値を取得
+    const userSettings = {
+      footerText: footerInput.value.trim(),
+      headerLogo: headerLogoInput.value.trim(),
+      closingLogo: closingLogoInput.value.trim(),
+      primaryColor: colorPicker.value,
+      titleBg: titleBgInput.value.trim(),
+      contentBg: contentBgInput.value.trim(),
+      closingBg: closingBgInput.value.trim()
+    };
+    
+    if (port) port.disconnect();
     port = chrome.runtime.connect({ name: "generate-channel" });
 
-    // バックグラウンドからのメッセージを待機
-    port.onMessage.addListener(handlePortMessage);
-    // 接続が切断されたときのハンドラ
-    port.onDisconnect.addListener(handlePortDisconnect);
-    // 接続が確立したら、処理開始のメッセージを送信
-    port.postMessage(message);
-  }
-
-  // --- 共通のメッセージハンドラ ---
-  function handlePortMessage(msg) {
-    if (msg.status === 'progress' || msg.status === 'success') {
+    port.onMessage.addListener((msg) => {
       statusMessage.textContent = msg.message;
-    } else if (msg.status === 'error') {
-      statusMessage.textContent = `エラー: ${msg.message}`;
-    }
+      if (msg.status === 'success' || msg.status === 'error') {
+        generateBtn.disabled = false;
+        if (port) port.disconnect();
+      }
+    });
+
+    port.onDisconnect.addListener(() => {
+      if (!statusMessage.textContent.startsWith("完了") && !statusMessage.textContent.startsWith("エラー")) {
+        statusMessage.textContent = "エラー: 接続が予期せず切れました。";
+      }
+      generateBtn.disabled = false;
+      port = null;
+    });
     
-    if (msg.status === 'success' || msg.status === 'error') {
-      enableButtons();
-      if (port) port.disconnect();
-    }
-  }
-
-  // --- 共通の切断ハンドラ ---
-  function handlePortDisconnect() {
-    console.log("ポートが切断されました。");
-    if (!statusMessage.textContent.startsWith("完了") && !statusMessage.textContent.startsWith("エラー")) {
-      statusMessage.textContent = "エラー: 接続が予期せず切れました。";
-    }
-    enableButtons(); // 切断されたら必ずボタンを有効に戻す
-    port = null;
-  }
-  
-  // --- UI制御ヘルパー ---
-  function disableButtons() {
-    generateBtn.disabled = true;
-    regenerateBtn.disabled = true;
-  }
-
-  function enableButtons() {
-    generateBtn.disabled = false;
-    regenerateBtn.disabled = false;
-  }
+    // background.jsにプロンプトとユーザー設定を渡す
+    port.postMessage({
+      action: "generateSlidesWithAI",
+      prompt: promptText,
+      settings: userSettings 
+    });
+  });
 });
 
 
