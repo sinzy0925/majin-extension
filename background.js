@@ -4,9 +4,10 @@
 const DEFAULT_SETTINGS = {
   deploymentId: "AKfycbySvStV0tawHEK6ZX9JGlngVMd_OXe0ntJM7FbVzpCRCJ8tRMDJIp1fJKXYX78o1QO-",
   apiKey: "",
-  aiModel: 'gemini-2.5-flash'
+  aiModel: 'gemini-1.5-flash-latest'
 };
 
+const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
 let activePort = null;
 
 // --- 接続リスナー ---
@@ -16,8 +17,9 @@ chrome.runtime.onConnect.addListener((port) => {
 
   port.onMessage.addListener((msg) => {
     if (msg.action === "generateSlidesWithAI") {
-      // popup.jsから渡された prompt と settings を受け取る
       generateSlidesWithAI(msg.prompt, msg.settings);
+    } else if (msg.action === "regenerateWithDesign") { // ▼▼▼ 追加 ▼▼▼
+      regenerateWithDesign(msg.settings);
     }
   });
 
@@ -35,7 +37,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       aiModel: DEFAULT_SETTINGS.aiModel
     });
   }
-  return true; // 非同期応答のためにtrueを返す
+  return true;
 });
 
 
@@ -44,6 +46,22 @@ function sendProgress(response) {
   if (activePort) {
     activePort.postMessage(response);
   }
+}
+
+// --- 機能: デザイン設定で0.gsの内容を書き換える ---
+function createFile0Source(baseSource, settings) {
+    let source = baseSource;
+    if (settings) {
+        if (settings.footerText) { source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${settings.footerText}\`;`); }
+        if (settings.headerLogo) { source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
+        if (settings.closingLogo) { source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
+        if (settings.primaryColor) { source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
+        const formatUrl = (url) => url ? `"${url}"` : 'null';
+        if (settings.titleBg !== undefined) { source = source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(settings.titleBg)};`); }
+        if (settings.contentBg !== undefined) { source = source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(settings.contentBg)};`); }
+        if (settings.closingBg !== undefined) { source = source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`); }
+    }
+    return source;
 }
 
 // --- メインのスライド生成関数 ---
@@ -57,26 +75,14 @@ async function generateSlidesWithAI(userPrompt, settings) {
     sendProgress({ status: 'progress', message: 'GASプロジェクトを準備中...'});
     const token = await getAuthToken();
 
-    let file0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
-    
-    // デザイン設定で0.gsを書き換える
-    if (settings) {
-      if (settings.footerText) { file0Source = file0Source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${settings.footerText}\`;`); }
-      if (settings.headerLogo) { file0Source = file0Source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
-      if (settings.closingLogo) { file0Source = file0Source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
-      if (settings.primaryColor) { file0Source = file0Source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
-      const formatUrl = (url) => url ? `"${url}"` : 'null';
-      if (settings.titleBg !== undefined) { file0Source = file0Source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(settings.titleBg)};`); }
-      if (settings.contentBg !== undefined) { file0Source = file0Source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(settings.contentBg)};`); }
-      if (settings.closingBg !== undefined) { file0Source = file0Source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`); }
-    }
+    const baseFile0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
+    const file0Source = createFile0Source(baseFile0Source, settings);
     
     const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
     const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...'});
     const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
-    const SCRIPT_ID = "1rN_uajX9w8Y-x_HdqUuQvBgE6ICC2VrpE67iv1byuQFu3snzyJ0Ms1f5";
     await updateGasProject(SCRIPT_ID, token, newSource);
 
     sendProgress({ status: 'progress', message: '新バージョンを作成中...'});
@@ -98,9 +104,54 @@ async function generateSlidesWithAI(userPrompt, settings) {
   }
 }
 
+// --- ▼▼▼ 新しい関数 ▼▼▼ ---
+// --- デザインのみ反映して再生成する関数 ---
+async function regenerateWithDesign(settings) {
+    try {
+        sendProgress({ status: 'progress', message: 'デザイン反映の準備を開始...'});
+        const token = await getAuthToken();
+
+        sendProgress({ status: 'progress', message: '現在のスライド構成(2.gs)を取得中...'});
+        const currentProject = await getGasProjectContent(SCRIPT_ID, token);
+        const slideDataString = currentProject.files.find(f => f.name === '2')?.source;
+
+        if (!slideDataString) {
+            throw new Error("既存のスライド構成(2.gs)が見つかりません。先に一度「全自動で生成」を実行してください。");
+        }
+
+        const baseFile0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
+        const file0Source = createFile0Source(baseFile0Source, settings);
+
+        const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
+        const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
+        
+        sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...'});
+        const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
+        await updateGasProject(SCRIPT_ID, token, newSource);
+
+        sendProgress({ status: 'progress', message: '新バージョンを作成中...'});
+        const versionResponse = await createNewVersion(SCRIPT_ID, token);
+        const newVersionNumber = versionResponse.versionNumber;
+
+        sendProgress({ status: 'progress', message: `デプロイを更新中 (v${newVersionNumber})...` });
+        await updateDeployment(SCRIPT_ID, settings.deploymentId, token, newVersionNumber);
+
+        sendProgress({ status: 'progress', message: 'スライドを再生成しています...'});
+        const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
+        const result = await executeWebApp(WEB_APP_URL);
+        
+        sendProgress({ status: 'success', message: '完了: デザインが反映されました。' });
+
+    } catch (error) {
+        console.error("【CRITICAL ERROR in regenerate】:", error);
+        sendProgress({ status: 'error', message: error.message || '不明なエラーです。' });
+    }
+}
+// --- ▲▲▲ 新しい関数ここまで ▲▲▲ ---
+
 
 // -----------------------------------------------------------------------------
-// --- 補助関数群 (変更なしの部分は省略) ---
+// --- 補助関数群 (変更なしのものは省略) ---
 // -----------------------------------------------------------------------------
 
 async function getSlideDataFromAI(userPrompt, apiUrl) {
@@ -108,7 +159,7 @@ async function getSlideDataFromAI(userPrompt, apiUrl) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000);
   try {
-    const response = await fetch(apiUrl, { // 引数で受け取ったURLを使用
+    const response = await fetch(apiUrl, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: systemPrompt + "\n\n---\n\n" + userPrompt }] }],
@@ -122,12 +173,10 @@ async function getSlideDataFromAI(userPrompt, apiUrl) {
     clearTimeout(timeoutId);
     if (!response.ok) { const errorData = await response.json(); throw new Error(`AI APIエラー: ${errorData.error.message}`); }
     const data = await response.json();
-    if (!data.candidates || data.candidates.length === 0) { throw new Error("AIからの応答がありませんでした。プロンプトがセーフティ機能に抵触した可能性があります。"); }
-    if (data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-      let rawText = data.candidates[0].content.parts[0].text;
-      rawText = rawText.replace(/^```javascript\s*/, '').replace(/```\s*$/, '');
-      return rawText.trim();
-    } else { throw new Error("AIからのレスポンス形式が不正です。"); }
+    if (!data.candidates || data.candidates.length === 0) { throw new Error("AIからの応答がありませんでした。"); }
+    let rawText = data.candidates[0].content.parts[0].text;
+    rawText = rawText.replace(/^```javascript\s*/, '').replace(/```\s*$/, '');
+    return rawText.trim();
   } catch (error) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') { throw new Error("AI APIからの応答がタイムアウトしました（120秒）。"); }
@@ -144,13 +193,9 @@ function getAuthToken() {
 }
 
 function createProjectSource(file0,file1, file2, file3) {
-  const manifestContent = `
-  {
-    "timeZone": "Asia/Tokyo", 
-    "dependencies": {}, 
-    "exceptionLogging": "STACKDRIVER",
-    "runtimeVersion": "V8", 
-    "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
+  const manifestContent = `{
+    "timeZone": "Asia/Tokyo", "dependencies": {}, "exceptionLogging": "STACKDRIVER",
+    "runtimeVersion": "V8", "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
   }`;
   return {
     files: [
@@ -170,6 +215,13 @@ async function updateGasProject(scriptId, token, source) {
     body: JSON.stringify(source)
   });
   if (!response.ok) { const errorData = await response.json(); throw new Error(`GASプロジェクトの更新に失敗: ${errorData.error.message}`); }
+  return await response.json();
+}
+
+async function getGasProjectContent(scriptId, token) {
+  const url = `https://script.googleapis.com/v1/projects/${scriptId}/content?fields=files(name,source)`;
+  const response = await fetch(url, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
+  if (!response.ok) { const errorData = await response.json(); throw new Error(`GASプロジェクト内容の取得に失敗: ${errorData.error.message}`); }
   return await response.json();
 }
 

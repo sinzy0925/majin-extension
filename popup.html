@@ -21,7 +21,7 @@
     .settings-group { margin-top: 10px; }
     
     .settings-item { display: flex; align-items: center; margin-bottom: 12px; }
-    .settings-item label { flex: 0 0 160px; font-size: 14px; color: #333; padding-right: 10px; } /* ラベル幅を調整 */
+    .settings-item label { flex: 0 0 160px; font-size: 14px; color: #333; padding-right: 10px; }
     .settings-item input { flex: 1; margin-bottom: 0; }
     
     .regenerate-section { padding-top: 10px; border-top: 1px solid #ccc; }
@@ -31,15 +31,12 @@
     #regenerate-button { width: 100%; background-color: #34A853; color: white; }
     #regenerate-button:disabled { background-color: #a7d7b4; }
     
-    #status-message { margin-top: 15px; font-size: 14px; min-height: 20px; text-align: center; color: #333; }
-
     .action-buttons { display: flex; gap: 10px; margin-bottom: 5px; align-items: center; }
     .action-buttons button { width: 150px; font-size: 14px; padding: 8px; }
     #save-settings-button { background-color: #0F9D58; color: white; }
     #reset-settings-button { background-color: #6c757d; color: white; }
     #feedback-message { flex: 1; font-size: 14px; color: #0F9D58; padding-left: 10px; }
 
-    /* ▼▼▼ 変更箇所 ▼▼▼ */
     .collapsible {
       cursor: pointer;
       user-select: none;
@@ -48,8 +45,20 @@
     }
     .collapsible-content {
       padding-top: 10px;
-      display: none; /* 初期状態は非表示 */
+      display: none;
       overflow: hidden;
+    }
+    
+    /* ▼▼▼ 変更箇所 ▼▼▼ */
+    #status-message {
+      margin-top: 15px;
+      font-size: 14px;
+      min-height: 20px;
+      text-align: center;
+      color: #333;
+      padding: 8px; /* 内側の余白を追加 */
+      border-radius: 4px; /* 角を丸くする */
+      background-color: #e8f0fe; /* 薄い青系の背景色 */
     }
     /* ▲▲▲ 変更箇所 ▲▲▲ */
 
@@ -90,7 +99,6 @@
       <input type="color" id="primary-color" value="#4285F4">
     </div>
 
-    <!-- ▼▼▼ 変更箇所 ▼▼▼ -->
     <div class="settings-group">
       <h4 class="collapsible">▼ API・連携設定 (必須項目です)</h4>
       <div class="collapsible-content">
@@ -108,7 +116,6 @@
         </div>
       </div>
     </div>
-    <!-- ▲▲▲ 変更箇所 ▲▲▲ -->
 
     <div class="action-buttons">
       <button id="save-settings-button">設定を保存</button>

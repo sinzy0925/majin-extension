@@ -1,3 +1,4 @@
+// popup.js
 document.addEventListener('DOMContentLoaded', () => {
   // --- DOM要素の取得 ---
   const userPrompt = document.getElementById('user-prompt');
@@ -5,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const generateBtn = document.getElementById('generate-button');
   const regenerateBtn = document.getElementById('regenerate-button');
   
-  // デザイン設定
   const designInputs = {
     footerText: document.getElementById('footer-text'),
     headerLogo: document.getElementById('header-logo'),
@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     primaryColor: document.getElementById('primary-color'),
   };
 
-  // API設定
   const apiInputs = {
     deploymentId: document.getElementById('deployment-id'),
     apiKey: document.getElementById('api-key'),
@@ -27,11 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetBtn = document.getElementById('reset-settings-button');
   const feedbackMessage = document.getElementById('feedback-message');
   
-  // 折りたたみメニュー
   const collapsible = document.querySelector('.collapsible');
   const collapsibleContent = document.querySelector('.collapsible-content');
 
-  const SETTINGS_KEY = 'userAppSettings'; // キー名を変更
+  const SETTINGS_KEY = 'userAppSettings';
   let port = null;
 
   // --- 機能: 折りたたみメニューの制御 ---
@@ -45,14 +43,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function showFeedback(message, isError = false) {
     feedbackMessage.textContent = message;
     feedbackMessage.style.color = isError ? '#D93025' : '#0F9D58';
-    setTimeout(() => {
-      feedbackMessage.textContent = '';
-    }, 4000);
+    setTimeout(() => { feedbackMessage.textContent = ''; }, 4000);
   }
 
   // --- 機能: デフォルト設定の取得 ---
   async function getDefaultSettings() {
-    // 0.gsからデザインのデフォルト値を取得
     const designDefaults = await (async () => {
       try {
         const res = await fetch(chrome.runtime.getURL('0.gs'));
@@ -68,10 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
       } catch (e) { return {}; }
     })();
-
-    // background.jsからAPIのデフォルト値を取得
     const apiDefaults = await chrome.runtime.sendMessage({ action: "getDefaultApiSettings" });
-    
     return { ...designDefaults, ...apiDefaults };
   }
 
@@ -120,57 +112,65 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- イベントリスナー: 生成ボタンクリック ---
-  generateBtn.addEventListener('click', () => {
+  // --- 機能: ボタンを無効化し、ポート接続を準備する共通関数 ---
+  function startProcess(action, payload) {
     const allSettings = getSettingsFromForm();
     
     // 必須項目チェック
     if (!allSettings.deploymentId || !allSettings.apiKey || !allSettings.aiModel) {
       statusMessage.textContent = "API・連携設定の必須項目を入力してください。";
-      collapsible.click(); // 設定エリアを開いてユーザーに知らせる
+      if (!collapsible.classList.contains('active')) {
+        collapsible.click();
+      }
       return;
     }
-    
-    const promptText = userPrompt.value;
-    if (!promptText.trim()) {
-      statusMessage.textContent = "プロンプトを入力してください。";
-      return;
+
+    if (action === 'generateSlidesWithAI' && !payload.prompt.trim()) {
+        statusMessage.textContent = "プロンプトを入力してください。";
+        return;
     }
-    
+
     generateBtn.disabled = true;
     regenerateBtn.disabled = true;
     statusMessage.textContent = "処理を開始します...";
-    
+
     if (port) port.disconnect();
     port = chrome.runtime.connect({ name: "generate-channel" });
 
     port.onMessage.addListener((msg) => {
-      statusMessage.textContent = msg.message;
-      if (msg.status === 'success' || msg.status === 'error') {
-        generateBtn.disabled = false;
-        regenerateBtn.disabled = false;
-        if (port) port.disconnect();
-      }
+        statusMessage.textContent = msg.message;
+        if (msg.status === 'success' || msg.status === 'error') {
+            generateBtn.disabled = false;
+            regenerateBtn.disabled = false;
+            if (port) port.disconnect();
+        }
     });
 
     port.onDisconnect.addListener(() => {
-      if (!statusMessage.textContent.startsWith("完了") && !statusMessage.textContent.startsWith("エラー")) {
-        statusMessage.textContent = "エラー: 接続が予期せず切れました。";
-      }
-      generateBtn.disabled = false;
-      regenerateBtn.disabled = false;
-      port = null;
+        if (!statusMessage.textContent.startsWith("完了") && !statusMessage.textContent.startsWith("エラー")) {
+            statusMessage.textContent = "エラー: 接続が予期せず切れました。";
+        }
+        generateBtn.disabled = false;
+        regenerateBtn.disabled = false;
+        port = null;
     });
     
-    // background.jsにプロンプトと全設定を渡す
-    port.postMessage({
-      action: "generateSlidesWithAI",
-      prompt: promptText,
-      settings: allSettings 
+    port.postMessage({ action, ...payload });
+  }
+
+
+  // --- イベントリスナー: 生成ボタンクリック ---
+  generateBtn.addEventListener('click', () => {
+    startProcess('generateSlidesWithAI', {
+        prompt: userPrompt.value,
+        settings: getSettingsFromForm()
     });
   });
 
-  if (regenerateBtn) {
-    // 再生成ボタンは今回スコープ外
-  }
+  // --- イベントリスナー: 再生成ボタンクリック ---
+  regenerateBtn.addEventListener('click', () => {
+    startProcess('regenerateWithDesign', {
+        settings: getSettingsFromForm()
+    });
+  });
 });
