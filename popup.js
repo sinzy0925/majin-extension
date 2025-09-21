@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     contentBg: document.getElementById('content-bg'),
     closingBg: document.getElementById('closing-bg'),
     primaryColor: document.getElementById('primary-color'),
+    bgStartColor: document.getElementById('bg-gradient-start-color'),
+    bgEndColor: document.getElementById('bg-gradient-end-color'),
   };
 
   const apiInputs = {
@@ -74,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
           headerLogo: (text.match(/const str_LOGOS_header= '([^']+)'/) || [])[1] || '',
           closingLogo: (text.match(/const str_LOGOS_closing= '([^']+)'/) || [])[1] || '',
           primaryColor: (text.match(/const str_primary_color= '([^']+)';/) || [])[1] || '#4285F4',
+          bgStartColor: (text.match(/const str_bg_gradient_start_color= '([^']+)';/) || [])[1] || '#4285F4',
+          bgEndColor: (text.match(/const str_bg_gradient_end_color= '([^']+)';/) || [])[1] || '#4285F4',
           titleBg: (text.match(/const str_title_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',
           contentBg: (text.match(/const str_content_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',
           closingBg: (text.match(/const str_closing_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || ''

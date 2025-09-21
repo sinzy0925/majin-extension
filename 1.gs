@@ -6,6 +6,7 @@ TARGET_PRESENTATION_ID: null
 
 // --- 2. マスターデザイン設定 (Pixel Perfect Ver.) ---
 const CONFIG = {
+GRADIENT_DIRECTION: 'vertical', // 'vertical', 'diagonal-lr', 'diagonal-rl' から選択
 BASE_PX: { W: 960, H: 540 },
 
 // レイアウトの基準となる不変のpx値
@@ -143,10 +144,8 @@ background_white: '#FFFFFF',
 background_gray: '#f8f9fa', 
 
   // --- グラデーション用の色定義 ---
-  background_gradient_start: '#FFFFFF', // グラデーション開始色 (白)
-  //background_gradient_end: '#FFFFFF', // グラデーション開始色 (白)
-  //background_gradient_end: '#FFF0F5',   // グラデーション終了色 (薄いピンク)
-  background_gradient_end: '#00ffff',   // グラデーション終了色 (アクア)
+  background_gradient_start: str_bg_gradient_start_color, // グラデーション開始色 (白)
+  background_gradient_end: str_bg_gradient_end_color,   // グラデーション終了色 (アクア)
 
 faint_gray: '#e8eaed', lane_title_bg: '#f8f9fa',
 table_header_bg: '#f8f9fa', lane_border: '#dadce0', card_bg: '#ffffff',

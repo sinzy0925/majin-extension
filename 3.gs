@@ -9,8 +9,31 @@ let __SECTION_COUNTER = 0; // 章番号カウンタ（ゴースト数字用）
 function generatePresentation() {
   const startTime = new Date();
   Logger.log("スライド生成処理を開始します...");
-  console.log("スライド生成処理を開始します...");
   const userSettings = PropertiesService.getScriptProperties().getProperties();
+
+  const props = PropertiesService.getScriptProperties(); // ★削除操作のために別途取得
+  // ▼▼▼ 【自動チェック＆削除機能】ここから ▼▼▼
+  const URL_MAX_LENGTH = 2000; // 安全マージンをとったURLの最大長
+  // ヘッダーロゴURLをチェック
+  if (userSettings.headerLogoUrl) {
+    const savedUrl = userSettings.headerLogoUrl;
+    if (savedUrl.startsWith('data:image/') || savedUrl.length > URL_MAX_LENGTH) {
+      Logger.log(`[自動修復] 不正なヘッダーロゴURLを検出したため削除します。URL: ${savedUrl.substring(0, 50)}...`);
+      props.deleteProperty('headerLogoUrl');    // サーバーから設定を削除
+      delete userSettings.headerLogoUrl;      // 今回の実行で使われないよう、読み込んだオブジェクトからも削除
+    }
+  }
+
+  // クロージングロゴURLも同様にチェック
+  if (userSettings.closingLogoUrl) {
+    const savedUrl = userSettings.closingLogoUrl;
+    if (savedUrl.startsWith('data:image/') || savedUrl.length > URL_MAX_LENGTH) {
+      Logger.log(`[自動修復] 不正なクロージングロゴURLを検出したため削除します。URL: ${savedUrl.substring(0, 50)}...`);
+      props.deleteProperty('closingLogoUrl'); // サーバーから設定を削除
+      delete userSettings.closingLogoUrl;   // 今回の実行で使われないよう、読み込んだオブジェクトからも削除
+    }
+  }
+
   if (userSettings.primaryColor) CONFIG.COLORS.primary_color = userSettings.primaryColor;
   if (userSettings.footerText) CONFIG.FOOTER_TEXT = userSettings.footerText;
   if (userSettings.headerLogoUrl) CONFIG.LOGOS.header = userSettings.headerLogoUrl;
@@ -275,6 +298,10 @@ function createTitleSlide(slide, data, layout) {
     logo.setLeft(logoRect.left).setTop(logoRect.top).setWidth(logoRect.width).setHeight(logoRect.width * aspect);
   } catch (e) {
     // 画像挿入に失敗した場合はスキップして他の要素を描画
+    Logger.log(`--- ERROR in createTitleSlide(slide, data, layout) ---`);
+    Logger.log(`Failed URL: ${CONFIG.LOGOS.header}`); // ★★★ 最も重要なログ ★★★
+    Logger.log('Failed URL: ${CONFIG.LOGOS.header}'); // ★★★ 最も重要なログ ★★★
+    Logger.log(`Error Message: ${e.message}`);
   }
 
   const titleRect = layout.getRect('titleSlide.title');
@@ -875,6 +902,11 @@ try {
   image.setWidth(imgW_pt).setHeight(imgW_pt * aspect);
   image.setLeft((layout.pageW_pt - imgW_pt) / 2).setTop((layout.pageH_pt - (imgW_pt * aspect)) / 2);
 } catch (e) {
+    Logger.log(`--- ERROR in createClosingSlide(slide, data, layout) ---`);
+    Logger.log(`Failed URL: ${CONFIG.LOGOS.closing}`); // ★★★ 最も重要なログ ★★★
+    Logger.log('Failed URL: ${CONFIG.LOGOS.closing}'); // ★★★ 最も重要なログ ★★★
+    Logger.log(`Error Message: ${e.message}`);
+
   // 画像挿入に失敗した場合はスキップして他の要素を描画
 }
 }
@@ -1626,45 +1658,6 @@ function renderImageGrid(slide, layout, area, images, cols) {
 
 // --- 8. ユーティリティ関数群 ---
 
-// drawGradientBackground の代わりに、この関数を使用します
-function drawFauxGradientBackground(slide, layout) {
-  const startColor = CONFIG.COLORS.background_gradient_start;
-  const endColor = CONFIG.COLORS.background_gradient_end;
-  const steps = 30; // グラデーションの滑らかさ（多いほど滑らか）
-
-  const startRGB = hexToRgb(startColor);
-  const endRGB = hexToRgb(endColor);
-
-  const stepHeight = layout.pageH_pt / steps;
-
-  for (let i = 0; i < steps; i++) {
-    const ratio = i / (steps - 1);
-    const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * ratio);
-    const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * ratio);
-    const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * ratio);
-    const stepColor = rgbToHex(r, g, b);
-
-    const y = i * stepHeight;
-    const shape = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, y, layout.pageW_pt, stepHeight + 1); // 隙間なく重ねる
-    shape.getFill().setSolidFill(stepColor);
-    shape.getBorder().setTransparent();
-    shape.sendToBack();
-  }
-}
-
-// 擬似グラデーション用のヘルパー関数（これもコピーしてください）
-function hexToRgb(hex) {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? {
-    r: parseInt(result[1], 16),
-    g: parseInt(result[2], 16),
-    b: parseInt(result[3], 16)
-  } : null;
-}
-
-function rgbToHex(r, g, b) {
-  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-}
 
 function createLayoutManager(pageW_pt, pageH_pt) {
 const pxToPt = (px) => px * 0.75;
@@ -1950,6 +1943,48 @@ const newB = Math.max(0, Math.min(255, Math.round(b * factor)));
 return '#' + ((1 << 24) + (newR << 16) + (newG << 8) + newB).toString(16).slice(1);
 }
 
+//スライドの背景をグラデーションで描画する
+function BUP_drawFauxGradientBackground(slide, layout) {
+  const startColor = CONFIG.COLORS.background_gradient_start;
+  const endColor = CONFIG.COLORS.background_gradient_end;
+  const steps = 30; // グラデーションの滑らかさ（多いほど滑らか）
+
+  const startRGB = hexToRgb(startColor);
+  const endRGB = hexToRgb(endColor);
+
+  const stepHeight = layout.pageH_pt / steps;
+
+  for (let i = 0; i < steps; i++) {
+    let ratio = i / (steps - 1);
+    ratio = ratio * ratio; // EaseInQuad: 変化の始まりを非常に緩やかにする
+    const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * ratio);
+    const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * ratio);
+    const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * ratio);
+    const stepColor = rgbToHex(r, g, b);
+
+    const y = i * stepHeight;
+    const shape = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, y, layout.pageW_pt, stepHeight + 1); // 隙間なく重ねる
+    shape.getFill().setSolidFill(stepColor);
+    shape.getBorder().setTransparent();
+    shape.sendToBack();
+  }
+}
+
+// 擬似グラデーション用のヘルパー関数（これもコピーしてください）
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+function rgbToHex(r, g, b) {
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+
 /**
  * スライドの背景を描画する。
  * CONFIG.BACKGROUNDSにURLが設定されていれば画像背景を、なければグラデーション背景を描画する。
@@ -1989,12 +2024,14 @@ function drawSlideBackground(slide, slideType,layout) {
       image.sendToBack(); // 最背面に移動
     } catch (e) {
       Logger.log(`背景画像の挿入に失敗しました: ${e.message}。グラデーション背景にフォールバックします。`);
-      drawFauxGradientBackground(slide); // 失敗したらグラデーションに
+      //drawFauxGradientBackground(slide); // 失敗したらグラデーションに
+      drawFauxGradientBackground(slide, layout, CONFIG.GRADIENT_DIRECTION); 
     }
   } else {
     // --- 画像URLが設定されていない場合（従来通り） ---
     slide.getBackground().setTransparent();
-    drawFauxGradientBackground(slide,layout);
+    //drawFauxGradientBackground(slide,layout);
+    drawFauxGradientBackground(slide, layout, CONFIG.GRADIENT_DIRECTION); 
   }
 }
 
@@ -2058,4 +2095,98 @@ function formatLog(data) {
     message = String(data);
   }
   return `[GAS ${timestamp}] ${message}`;
+}
+
+
+/**
+ * スライドの背景を指定された向きのグラデーションで描画する
+ * @param {GoogleAppsScript.Slides.Slide} slide 対象のスライド
+ * @param {object} layout レイアウトマネージャー
+ * @param {string} [direction='vertical'] グラデーションの向き ('vertical', 'diagonal-lr', 'diagonal-rl')
+ */
+function drawFauxGradientBackground(slide, layout, direction = 'vertical') {
+  const startColor = CONFIG.COLORS.background_gradient_start;
+  const endColor = CONFIG.COLORS.background_gradient_end;
+  const steps = (direction === 'vertical') ? 40 : 100; // 縦40 斜め100 斜めは少し多めに
+
+  const startRGB = hexToRgb(startColor);
+  const endRGB = hexToRgb(endColor);
+
+  switch (direction) {
+    case 'diagonal-lr':
+    case 'diagonal-rl':
+      drawDiagonalGradient(slide, layout, startRGB, endRGB, steps, direction);
+      break;
+    
+    case 'vertical':
+    default:
+      drawVerticalGradient(slide, layout, startRGB, endRGB, steps);
+      break;
+  }
+}
+
+/**
+ * 垂直グラデーションを描画するヘルパー関数
+ */
+function drawVerticalGradient(slide, layout, startRGB, endRGB, steps) {
+  const stepHeight = layout.pageH_pt / steps;
+  for (let i = 0; i < steps; i++) {
+    let ratio = i / (steps - 1);
+    ratio = ratio * ratio; // EaseInQuad: 上部の色の割合を多くする
+
+    const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * ratio);
+    const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * ratio);
+    const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * ratio);
+    const stepColor = rgbToHex(r, g, b);
+
+    const y = i * stepHeight;
+    const shape = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, y, layout.pageW_pt, stepHeight + 1);
+    shape.getFill().setSolidFill(stepColor);
+    shape.getBorder().setTransparent();
+    shape.sendToBack();
+  }
+}
+
+/**
+ * 斜めグラデーションを描画するヘルパー関数
+ */
+function drawDiagonalGradient(slide, layout, startRGB, endRGB, steps, direction) {
+  const pageW = layout.pageW_pt;
+  const pageH = layout.pageH_pt;
+
+  const angleDegrees = (direction === 'diagonal-lr') ? -25 : 25; // 左上→右下は-25度, 右上→左下は25度
+  const angleRadians = angleDegrees * Math.PI / 180;
+
+  const shapeWidth = pageW * Math.abs(Math.cos(angleRadians)) + pageH * Math.abs(Math.sin(angleRadians)) + 100;
+  const stepHeight = 20; 
+  const totalHeight = pageH * Math.abs(Math.cos(angleRadians)) + pageW * Math.abs(Math.sin(angleRadians));
+
+  for (let i = 0; i < steps; i++) {
+    const ratio = i / (steps - 1);
+    const easedRatio = 1 - (1 - ratio) * (1 - ratio); // EaseOutQuad
+
+    const r = Math.round(startRGB.r + (endRGB.r - startRGB.r) * easedRatio);
+    const g = Math.round(startRGB.g + (endRGB.g - startRGB.g) * easedRatio);
+    const b = Math.round(startRGB.b + (endRGB.b - startRGB.b) * easedRatio);
+    const stepColor = rgbToHex(r, g, b);
+    
+    const shape = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, 0, 0, shapeWidth, stepHeight);
+    shape.getFill().setSolidFill(stepColor);
+    shape.getBorder().setTransparent();
+    shape.setRotation(angleDegrees);
+
+    const progress = i / (steps - 1);
+    const offsetX = (totalHeight * progress) * Math.sin(angleRadians);
+    const offsetY = (totalHeight * progress) * Math.cos(angleRadians);
+    
+    let leftPos = offsetX - 50;
+    // 右上からの場合、X座標を調整してスライド全体をカバー
+    if (angleDegrees > 0) {
+      leftPos += pageW * Math.cos(angleRadians) - totalHeight * Math.sin(angleRadians);
+    }
+    
+    shape.setLeft(leftPos);
+    shape.setTop(offsetY);
+    shape.sendToBack();
+  }
 }
