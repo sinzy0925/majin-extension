@@ -6,7 +6,7 @@ TARGET_PRESENTATION_ID: null
 
 // --- 2. マスターデザイン設定 (Pixel Perfect Ver.) ---
 const CONFIG = {
-GRADIENT_DIRECTION: 'vertical', // 'vertical', 'diagonal-lr', 'diagonal-rl' から選択
+GRADIENT_DIRECTION: str_GRADIENT_DIRECTION,//'vertical', 'diagonal-lr', 'diagonal-rl'
 BASE_PX: { W: 960, H: 540 },
 
 // レイアウトの基準となる不変のpx値

@@ -7,4 +7,6 @@ const str_bg_gradient_end_color= '#00FFFF';
 const str_content_background_image_url= null;
 const str_title_background_image_url= null; 
 const str_closing_background_image_url= null; 
+const str_GRADIENT_DIRECTION= 'vertical';// 'vertical', 'diagonal-lr', 'diagonal-rl'
+
 
