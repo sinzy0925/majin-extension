@@ -867,7 +867,7 @@ function createKpiSlide(slide, data, layout, pageNum) {
 function createClosingSlide(slide, data, layout) {
 slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
 slide.getBackground().setTransparent();
-  drawSlideBackground(slide, 'content',layout);
+  drawSlideBackground(slide, 'closing',layout);
 try {
   const image = slide.insertImage(CONFIG.LOGOS.closing);
   const imgW_pt = layout.pxToPt(450) * layout.scaleX;

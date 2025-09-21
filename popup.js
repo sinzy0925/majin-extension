@@ -27,17 +27,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetBtn = document.getElementById('reset-settings-button');
   const feedbackMessage = document.getElementById('feedback-message');
   
-  const collapsible = document.querySelector('.collapsible');
-  const collapsibleContent = document.querySelector('.collapsible-content');
+  const collapsible1 = document.querySelector('.collapsible1');
+  const collapsible1Content = document.querySelector('.collapsible1-content');
+  const collapsible2 = document.querySelector('.collapsible2');
+  const collapsible2Content = document.querySelector('.collapsible2-content');
+  const collapsible3 = document.querySelector('.collapsible3');
+  const collapsible3Content = document.querySelector('.collapsible3-content');
 
   const SETTINGS_KEY = 'userAppSettings';
   let port = null;
 
   // --- 機能: 折りたたみメニューの制御 ---
-  collapsible.addEventListener('click', () => {
-    const isExpanded = collapsible.classList.toggle('active');
-    collapsibleContent.style.display = isExpanded ? 'block' : 'none';
-    collapsible.textContent = isExpanded ? '▲ API・連携設定 (上級者向け)' : '▼ API・連携設定 (上級者向け)';
+  collapsible1.addEventListener('click', () => {
+    const isExpanded = collapsible1.classList.toggle('active');
+    collapsible1Content.style.display = isExpanded ? 'block' : 'none';
+    collapsible1.textContent = isExpanded ? '▲ API・GAS設定 (必須)' : '▼ API・GAS設定 (必須)';
+  });
+
+  collapsible2.addEventListener('click', () => {
+    const isExpanded = collapsible2.classList.toggle('active');
+    collapsible2Content.style.display = isExpanded ? 'block' : 'none';
+    collapsible2.textContent = isExpanded ? '▲ ロゴ・フッターテキスト設定' : '▼ ロゴ・フッターテキスト設定';
+  });
+
+  collapsible3.addEventListener('click', () => {
+    const isExpanded = collapsible3.classList.toggle('active');
+    collapsible3Content.style.display = isExpanded ? 'block' : 'none';
+    collapsible3.textContent = isExpanded ? '▲ 背景画像設定' : '▼ 背景画像設定';
   });
 
   // --- 機能: フィードバックメッセージを表示 ---
@@ -139,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     port = chrome.runtime.connect({ name: "generate-channel" });
 
     port.onMessage.addListener((msg) => {
-        statusMessage.textContent = msg.message;
+        statusMessage.innerHTML = msg.message;
         if (msg.status === 'success' || msg.status === 'error') {
             generateBtn.disabled = false;
             regenerateBtn.disabled = false;

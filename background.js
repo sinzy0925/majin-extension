@@ -68,6 +68,7 @@ function createFile0Source(baseSource, settings) {
 
 // --- メインのスライド生成関数 ---
 async function generateSlidesWithAI(userPrompt, settings) {
+  const startTime = new Date().getTime();
   try {
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${settings.aiModel}:generateContent?key=${settings.apiKey}`;
 
@@ -100,8 +101,11 @@ async function generateSlidesWithAI(userPrompt, settings) {
     sendProgress({ status: 'progress', message: 'スライドを生成しています...'});
     const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
     const result = await executeWebApp(WEB_APP_URL);
+
+    const endTime = new Date().getTime();
+    const elapsedTimeInSeconds = (endTime - startTime) / 1000;
     
-    sendProgress({ status: 'success', message: '完了: ' + result.message });
+    sendProgress({ status: 'success', message:  result.message + `<br>[${elapsedTimeInSeconds.toFixed(2)} 秒]` });
 
   } catch (error) {
     console.error("【CRITICAL ERROR】:", error);
@@ -113,6 +117,8 @@ async function generateSlidesWithAI(userPrompt, settings) {
 // --- デザインのみ反映して再生成する関数 ---
 
 async function regenerateWithDesign(settings) {
+  const startTime = new Date().getTime();
+
     try {
         sendProgress({ status: 'progress', message: 'デザイン反映の準備を開始...'});
         const token = await getAuthToken();
@@ -147,8 +153,12 @@ async function regenerateWithDesign(settings) {
         const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
         const result = await executeWebApp(WEB_APP_URL);
         
-        sendProgress({ status: 'success', message: '完了: デザインが反映されました。' });
-
+        //sendProgress({ status: 'success', message: '完了: デザインが反映されました。' });
+        const endTime = new Date().getTime();
+        const elapsedTimeInSeconds = (endTime - startTime) / 1000;
+        
+        sendProgress({ status: 'success', message:  '完了: デザインが反映されました。' + `<br>[${elapsedTimeInSeconds.toFixed(2)} 秒]` });
+    
     } catch (error) {
         console.error("【CRITICAL ERROR in regenerate】:", error);
         sendProgress({ status: 'error', message: error.message || '不明なエラーです。' });

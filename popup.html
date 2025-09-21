@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { width: 600px; padding: 10px; font-family: sans-serif; box-sizing: border-box; }
-    h3, h4 { text-align: center; margin-bottom: 10px; }
-    h4 { font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
+    body { width: 300px; padding: 10px; font-family: sans-serif; box-sizing: border-box; }
+    h3 { text-align: center; margin-bottom: 10px; }
+    h4 { text-align: left; font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
     
     textarea, .settings-item input {
       width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;
@@ -18,7 +18,24 @@
     #generate-button { width: 100%; background-color: #4285F4; color: white; margin-bottom: 15px; }
     #generate-button:disabled { background-color: #a0c3ff; }
     
-    .settings-group { margin-top: 10px; }
+    .settings-group1 {
+      margin-top: 1px;
+      background-color: #f0ffff; /* 薄いグレーの背景色を追加 */
+      padding: 0px;            /* 内側の余白を追加 */
+      border-radius: 10px;         /* 角を少し丸くする */
+    }
+    .settings-group2 {
+      margin-top: 1px;
+      background-color: #e0ffff; /* 薄いグレーの背景色を追加 */
+      padding: 0px;            /* 内側の余白を追加 */
+      border-radius: 10px;         /* 角を少し丸くする */
+    }
+    .settings-group3 {
+      margin-top: 1px;
+      background-color: #d0ffff; /* 薄いグレーの背景色を追加 */
+      padding: 0px;            /* 内側の余白を追加 */
+      border-radius: 10px;         /* 角を少し丸くする */
+    }
     
     .settings-item { display: flex; align-items: center; margin-bottom: 12px; }
     .settings-item label { flex: 0 0 160px; font-size: 14px; color: #333; padding-right: 10px; }
@@ -37,18 +54,42 @@
     #reset-settings-button { background-color: #6c757d; color: white; }
     #feedback-message { flex: 1; font-size: 14px; color: #0F9D58; padding-left: 10px; }
 
-    .collapsible {
+    .collapsible1 {
       cursor: pointer;
       user-select: none;
       font-weight: bold;
       text-align: left;
     }
-    .collapsible-content {
+    .collapsible1-content {
       padding-top: 10px;
       display: none;
       overflow: hidden;
     }
-    
+
+    .collapsible2 {
+      cursor: pointer;
+      user-select: none;
+      font-weight: bold;
+      text-align: left;
+    }
+    .collapsible2-content {
+      padding-top: 10px;
+      display: none;
+      overflow: hidden;
+    }
+
+    .collapsible3 {
+      cursor: pointer;
+      user-select: none;
+      font-weight: bold;
+      text-align: left;
+    }
+    .collapsible3-content {
+      padding-top: 10px;
+      display: none;
+      overflow: hidden;
+    }
+
     /* ▼▼▼ 変更箇所 ▼▼▼ */
     #status-message {
       margin-top: 15px;
@@ -62,78 +103,104 @@
     }
     /* ▲▲▲ 変更箇所 ▲▲▲ */
 
+    .vertical-item {
+      flex-direction: column; /* 要素を縦並びにする */
+      align-items: flex-start; /* 左揃えにする */
+    }
+    
+    .vertical-item label {
+      margin-top: 1px; /* ラベルと入力ボックスの間に余白を追加 */
+      margin-bottom: 1px; /* ラベルと入力ボックスの間に余白を追加 */
+      padding-right: 0; /* 右側の余白をリセット */
+      flex: none;
+    }
+    
+
   </style>
 </head>
 <body>
   <h3>スライド原稿入力</h3>
   <textarea id="user-prompt" placeholder="ここにスライドにしたい内容を貼り付け..."></textarea>
   
-  <div class="settings-group">
-    <h4>デザイン設定</h4>
-    <div class="settings-item">
-      <label for="footer-text">フッターテキスト</label>
-      <input type="text" id="footer-text" placeholder="読み込み中...">
-    </div>
-    <div class="settings-item">
-      <label for="header-logo">ヘッダーロゴURL</label>
-      <input type="text" id="header-logo" placeholder="読み込み中...">
-    </div>
-    <div class="settings-item">
-      <label for="closing-logo">クロージングロゴURL</label>
-      <input type="text" id="closing-logo" placeholder="読み込み中...">
-    </div>
-    <div class="settings-item">
-      <label for="title-bg">タイトル背景画像URL</label>
-      <input type="text" id="title-bg">
-    </div>
-    <div class="settings-item">
-      <label for="content-bg">本文背景画像URL</label>
-      <input type="text" id="content-bg">
-    </div>
-    <div class="settings-item">
-      <label for="closing-bg">最終頁 背景画像URL</label>
-      <input type="text" id="closing-bg">
-    </div>
-    <div class="settings">
-      <label for="primary-color">テーマカラー:</label>
-      <input type="color" id="primary-color" value="#4285F4">
-    </div>
 
-    <div class="settings-group">
-      <h4 class="collapsible">▼ API・連携設定 (必須項目です)</h4>
-      <div class="collapsible-content">
-        <div class="settings-item">
+    <div class="settings-group1">
+      <h4 class="collapsible1">▼ API・GAS設定 (必須項目)</h4>
+      <div class="collapsible1-content">
+        <div class="settings-item vertical-item">
           <label for="script-id">Script ID</label>
           <input type="text" id="script-id">
         </div>
-        <div class="settings-item">
+        <div class="settings-item vertical-item">
           <label for="deployment-id">Deployment ID</label>
           <input type="text" id="deployment-id">
         </div>
-        <div class="settings-item">
+        <div class="settings-item vertical-item">
           <label for="api-key">API Key</label>
           <input type="password" id="api-key">
         </div>
-        <div class="settings-item">
+        <div class="settings-item vertical-item">
           <label for="ai-model">AI Model</label>
           <input type="text" id="ai-model">
         </div>
       </div>
     </div>
 
+
+
+    <div class="settings-group2">
+      <h4 class="collapsible2">▼ ロゴ・フッターテキスト設定</h4>
+        <div class="collapsible2-content">
+          <div class="settings-item vertical-item">
+            <label for="footer-text">フッターテキスト</label>
+            <input type="text" id="footer-text" placeholder="読み込み中...">
+          </div>
+          <div class="settings-item vertical-item">
+            <label for="header-logo">ヘッダーロゴURL</label>
+            <input type="text" id="header-logo" placeholder="読み込み中...">
+          </div>
+          <div class="settings-item vertical-item">
+            <label for="closing-logo">クロージングロゴURL</label>
+            <input type="text" id="closing-logo" placeholder="読み込み中...">
+          </div>
+        </div>
+    </div>
+
+    <div class="settings-group3">
+      <h4 class="collapsible3">▼ 背景画像設定</h4>
+        <div class="collapsible3-content">
+          <div class="settings-item vertical-item">
+            <label for="title-bg">タイトル頁 背景画像URL</label>
+            <input type="text" id="title-bg">
+          </div>
+          <div class="settings-item vertical-item">
+            <label for="content-bg">本文 背景画像URL</label>
+            <input type="text" id="content-bg">
+          </div>
+          <div class="settings-item vertical-item">
+            <label for="closing-bg">最終頁 背景画像URL</label>
+            <input type="text" id="closing-bg">
+          </div>
+        </div>
+    </div>
+
+    <div class="settings">
+      <label for="primary-color">テーマカラー:</label>
+      <input type="color" id="primary-color" value="#4285F4">
+    </div>
+
+    
+
     <div class="action-buttons">
       <button id="save-settings-button">設定を保存</button>
-      <button id="reset-settings-button">初期状態に戻す</button>
+      <button id="reset-settings-button">設定を初期化</button>
       <span id="feedback-message"></span>
     </div>
-  </div>
 
 
-  <button id="generate-button">全自動でスライドを生成</button>
   <p id="status-message"></p>
+  <button id="generate-button">全自動でスライドを生成</button>
 
   <div class="regenerate-section">
-    <h4>微調整して再生成</h4>
     <button id="regenerate-button">デザインを反映して再生成</button>
   </div>
   
