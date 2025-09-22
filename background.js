@@ -58,6 +58,7 @@ function createFile0Source(baseSource, settings) {
         if (settings.headerLogo) { source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
         if (settings.closingLogo) { source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
         if (settings.primaryColor) { source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
+        if (settings.fontColor) { source = source.replace(/const str_text_primary= '.*';/, `const str_text_primary= '${settings.fontColor}';`); }
         if (settings.bgStartColor) { source = source.replace(/const str_bg_gradient_start_color= '.*';/, `const str_bg_gradient_start_color= '${settings.bgStartColor}';`); }
         if (settings.bgEndColor) { source = source.replace(/const str_bg_gradient_end_color= '.*';/, `const str_bg_gradient_end_color= '${settings.bgEndColor}';`); }
         if (settings.gradientDirection) { source = source.replace(/const str_GRADIENT_DIRECTION= '.*';/, `const str_GRADIENT_DIRECTION= '${settings.gradientDirection}';`); }

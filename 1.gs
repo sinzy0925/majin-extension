@@ -119,7 +119,7 @@ bottomBar: { left: 0, top: 534, width: 960, height: 6 }
 },
 
 FONTS: {
-family: 'Arial', // デフォルト、プロパティから動的に変更可能
+family: 'Roboto', // 'Arial'デフォルト、プロパティから動的に変更可能
 sizes: {
 title: 32, 
 sectionTitle: 30, 
@@ -138,15 +138,13 @@ ghostNum: 180
 },
 COLORS: {
 primary_color: str_primary_color, 
-text_primary: '#333333', 
+text_primary: str_text_primary,
+// --- グラデーション用の色定義 ---
+background_gradient_start: str_bg_gradient_start_color, // グラデーション開始色 (白)
+background_gradient_end: str_bg_gradient_end_color,   // グラデーション終了色 (アクア)
 
 background_white: '#FFFFFF',
 background_gray: '#f8f9fa', 
-
-  // --- グラデーション用の色定義 ---
-  background_gradient_start: str_bg_gradient_start_color, // グラデーション開始色 (白)
-  background_gradient_end: str_bg_gradient_end_color,   // グラデーション終了色 (アクア)
-
 faint_gray: '#e8eaed', lane_title_bg: '#f8f9fa',
 table_header_bg: '#f8f9fa', lane_border: '#dadce0', card_bg: '#ffffff',
 card_border: '#dadce0', neutral_gray: '#9e9e9e', ghost_gray: '#efefed'
