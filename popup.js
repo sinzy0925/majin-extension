@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     scriptId: document.getElementById('script-id'),
   };
 
+  const gradientDirectionRadios = document.querySelectorAll('input[name="gradient-direction"]');
+
   const saveBtn = document.getElementById('save-settings-button');
   const resetBtn = document.getElementById('reset-settings-button');
   const feedbackMessage = document.getElementById('feedback-message');
@@ -35,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const collapsible2Content = document.querySelector('.collapsible2-content');
   const collapsible3 = document.querySelector('.collapsible3');
   const collapsible3Content = document.querySelector('.collapsible3-content');
+  const collapsible4 = document.querySelector('.collapsible4');
+  const collapsible4Content = document.querySelector('.collapsible4-content');
 
   const SETTINGS_KEY = 'userAppSettings';
   let port = null;
@@ -58,11 +62,33 @@ document.addEventListener('DOMContentLoaded', () => {
     collapsible3.textContent = isExpanded ? '▲ 背景画像設定' : '▼ 背景画像設定';
   });
 
-  // --- 機能: フィードバックメッセージを表示 ---
-  function showFeedback(message, isError = false) {
+  collapsible4.addEventListener('click', () => {
+    const isExpanded = collapsible4.classList.toggle('active');
+    collapsible4Content.style.display = isExpanded ? 'block' : 'none';
+    collapsible4.textContent = isExpanded ? '▲ カラー設定' : '▼ カラー設定';
+  });
+
+  function aaaashowFeedback(message, isError = false) {
     feedbackMessage.textContent = message;
     feedbackMessage.style.color = isError ? '#D93025' : '#0F9D58';
     setTimeout(() => { feedbackMessage.textContent = ''; }, 4000);
+  }
+
+  // --- 機能: フィードバックメッセージを表示 ---
+  function showFeedback(message, isError = false) {
+    // 表示先を statusMessage に変更
+    statusMessage.textContent = message;
+    
+    // メッセージの種類に応じてスタイルを一時的に変更
+    statusMessage.style.color = isError ? '#D93025' : '#0F9D58';
+    statusMessage.style.backgroundColor = isError ? '#FCE8E6' : '#E6F4EA'; // 赤系 or 緑系の背景色
+  
+    // 4秒後にメッセージとスタイルを元に戻す
+    setTimeout(() => {
+      statusMessage.textContent = '';
+      statusMessage.style.color = '#333'; // 元の文字色
+      statusMessage.style.backgroundColor = '#e8f0fe'; // 元の背景色
+    }, 4000);
   }
 
   // --- 機能: デフォルト設定の取得 ---
@@ -100,7 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const settings = {};
     Object.keys(designInputs).forEach(key => { settings[key] = designInputs[key].value.trim(); });
     Object.keys(apiInputs).forEach(key => { settings[key] = apiInputs[key].value.trim(); });
-    return settings;
+    // ラジオボタンの値を取得
+    settings.gradientDirection = document.querySelector('input[name="gradient-direction"]:checked').value;    return settings;
   }
 
   // --- メインの読み込み処理 ---
