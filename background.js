@@ -89,8 +89,8 @@ function escapeTemplateLiteral(str) {
 function createFile0Source(baseSource, settings) {
     let source = baseSource;
     if (settings) {
-        const escapedText = escapeTemplateLiteral(settings.footerText);
-        source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${escapedText}\`;`);
+        const escapedText = JSON.stringify(settings.footerText || '');
+        source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = ${escapedText};`);
         if (isValidHttpUrl(settings.headerLogo)) { source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
         if (isValidHttpUrl(settings.closingLogo)) { source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
         if (isValidColorCode(settings.primaryColor)) { source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
@@ -167,11 +167,19 @@ async function handleGenerateNew(userPrompt, settings) {
     // 2. 念のため、前後の空白を削除
     slideDataString = slideDataString.trim();
 
+    // 応答文字列から `const slideData = [...]` の部分だけを安全に抽出する
+    const match = slideDataString.match(/const slideData\s*=\s*(\[[\s\S]*\]);?/);
+    if (!match || !match[1]) {
+        throw new Error("AIが生成したslideDataの形式が不正です (配列が見つかりません)。");
+    }
+    // 抽出した配列部分だけを使い、再構成する
+    const sanitizedSlideDataString = `const slideData = ${match[1]};`;
+
     // ===================================================================
     // ステップ3: AIが生成したslideData(2.gs)でプロジェクトを再度更新・実行
     // ===================================================================
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中(2/2)...' });
-    newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
+    newSource = createProjectSource(file0Source, file1Source, sanitizedSlideDataString, file3Source);
     await updateGasProject(settings.scriptId, token, newSource);
 
     sendProgress({ status: 'progress', message: '新バージョンを作成中(2/2)...' });

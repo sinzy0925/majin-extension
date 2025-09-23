@@ -192,29 +192,6 @@ function getSlideDataFromAI_gas(userPrompt, aiModel) {
 /**
  * 【新設】AIの応答文字列からslideDataオブジェクトを安全に抽出・パースする関数
  */
-function aaaparseSlideData(slideDataString) {
-  Logger.log("slideDataのパースを開始します...");
-  let rawJson = slideDataString.trim();
-  rawJson = rawJson.replace(/^```javascript\s*|\s*```\s*$/g, '');
-  const startIndex = rawJson.indexOf('[');
-  const endIndex = rawJson.lastIndexOf(']');
-  
-  if (startIndex === -1 || endIndex === -1) {
-    throw new Error("AIの応答に `[` または `]` が見つかりません。slideDataの形式が不正です。");
-  }
-  
-  rawJson = rawJson.substring(startIndex, endIndex + 1);
-  
-  try {
-    const slideData = new Function(`return ${rawJson};`)();
-    Logger.log(`パース成功。${slideData.length}枚のスライドデータを取得しました。`);
-    return slideData;
-  } catch (e) {
-    Logger.log(`slideDataのパースに失敗しました: ${e.message}`);
-    Logger.log(`問題の文字列: ${rawJson}`);
-    throw new Error("AIが生成したslideDataの構文解析に失敗しました。");
-  }
-}
 function parseSlideData(slideDataString) {
   Logger.log("slideDataのパースを開始します...");
   let rawJson = slideDataString.trim();
