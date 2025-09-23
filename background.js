@@ -47,26 +47,80 @@ function sendProgress(response) {
 }
 
 // --- 機能: デザイン設定で0.gsの内容を書き換える ---
+/**
+ * ユーザー設定を検証し、安全に0.gsのソースコードを生成する
+ * @param {string} baseSource 0.gsのテンプレート文字列
+ * @param {object} settings ユーザーが入力した設定値
+ * @returns {string} 生成された0.gsのソースコード
+ */
 function createFile0Source(baseSource, settings) {
-    let source = baseSource;
-    if (settings) {
-        if (settings.footerText) { source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${settings.footerText}\`;`); }
-        if (settings.headerLogo) { source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
-        if (settings.closingLogo) { source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
-        if (settings.primaryColor) { source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
-        if (settings.fontColor) { source = source.replace(/const str_text_primary= '.*';/, `const str_text_primary= '${settings.fontColor}';`); }
-        if (settings.fontFamily) { source = source.replace(/const str_font_family= '.*';/, `const str_font_family= '${settings.fontFamily}';`); }
-        if (settings.bgStartColor) { source = source.replace(/const str_bg_gradient_start_color= '.*';/, `const str_bg_gradient_start_color= '${settings.bgStartColor}';`); }
-        if (settings.bgEndColor) { source = source.replace(/const str_bg_gradient_end_color= '.*';/, `const str_bg_gradient_end_color= '${settings.bgEndColor}';`); }
-        if (settings.gradientDirection) { source = source.replace(/const str_GRADIENT_DIRECTION= '.*';/, `const str_GRADIENT_DIRECTION= '${settings.gradientDirection}';`); }
-        const formatUrl = (url) => url ? `'${url}'` : 'null';
-        if (settings.titleBg !== undefined) { source = source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(settings.titleBg)};`); }
-        if (settings.contentBg !== undefined) { source = source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(settings.contentBg)};`); }
-        if (settings.closingBg !== undefined) { source = source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`); }
+  let source = baseSource;
+  if (settings) {
+      // フッターテキスト: テンプレートリテラルのエスケープ処理
+      // 元のコードには無かったバリデーションを追加
+      const escapedText = escapeTemplateLiteral(settings.footerText);
+      source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = \`${escapedText}\`;`);
+      
+      // ヘッダーロゴURL: URL形式を検証
+      if (isValidHttpUrl(settings.headerLogo)) {
+          source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`);
       }
-    return source;
-}
 
+      // クロージングロゴURL: URL形式を検証
+      if (isValidHttpUrl(settings.closingLogo)) {
+          source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`);
+      }
+
+      // プライマリカラー: カラーコード形式を検証
+      if (isValidColorCode(settings.primaryColor)) {
+          source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`);
+      }
+
+      // フォントカラー: カラーコード形式を検証
+      if (isValidColorCode(settings.fontColor)) {
+          source = source.replace(/const str_text_primary= '.*';/, `const str_text_primary= '${settings.fontColor}';`);
+      }
+      
+      // 背景グラデーション開始色: カラーコード形式を検証
+      if (isValidColorCode(settings.bgStartColor)) {
+          source = source.replace(/const str_bg_gradient_start_color= '.*';/, `const str_bg_gradient_start_color= '${settings.bgStartColor}';`);
+      }
+
+      // 背景グラデーション終了色: カラーコード形式を検証
+      if (isValidColorCode(settings.bgEndColor)) {
+          source = source.replace(/const str_bg_gradient_end_color= '.*';/, `const str_bg_gradient_end_color= '${settings.bgEndColor}';`);
+      }
+      
+      // フォントファミリー: 選択肢なので基本的に安全
+      if (settings.fontFamily) {
+          source = source.replace(/const str_font_family= '.*';/, `const str_font_family= '${settings.fontFamily}';`);
+      }
+      
+      // グラデーションの向き: 選択肢なので安全
+      if (settings.gradientDirection) {
+          source = source.replace(/const str_GRADIENT_DIRECTION= '.*';/, `const str_GRADIENT_DIRECTION= '${settings.gradientDirection}';`);
+      }
+
+      // 背景画像URL: 元のロジックを尊重しつつ、URL検証を組み込む
+      const formatUrl = (url) => {
+          // URLが有効な場合のみシングルクォートで囲んだ文字列を返し、
+          // それ以外（空文字列や不正な形式）の場合は 'null' という文字列を返す
+          return isValidHttpUrl(url) ? `'${url}'` : 'null';
+      };
+
+      // !== undefined チェックは元のコードのまま維持
+      if (settings.titleBg !== undefined) {
+          source = source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(settings.titleBg)};`);
+      }
+      if (settings.contentBg !== undefined) {
+          source = source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(settings.contentBg)};`);
+      }
+      if (settings.closingBg !== undefined) {
+          source = source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`);
+      }
+  }
+  return source;
+}
 /**
  * GASプロジェクトの更新とデプロイ、実行までを行う共通関数
  * @param {object} settings ユーザーが設定した値（scriptId, deploymentIdなど）
@@ -277,4 +331,35 @@ async function executeWebApp(url, token, payload) {
     // 解析失敗時も、生のテキストをエラーメッセージに含める
     throw new Error(`ウェブアプリ応答の解析に失敗しました。GASからの応答: ${text}`);
   }
+}
+
+/**
+ * 文字列が有効なHTTP/HTTPS URLであるか検証する
+ */
+function isValidHttpUrl(string) {
+  if (!string) return false;
+  let url;
+  try {
+    url = new URL(string);
+  } catch (_) {
+    return false;  
+  }
+  return url.protocol === "http:" || url.protocol === "httpsS:";
+}
+
+/**
+ * 文字列が有効なカラーコード（#FFF or #FFFFFF）であるか検証する
+ */
+function isValidColorCode(string) {
+  if (!string) return false;
+  return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(string);
+}
+
+/**
+ * JavaScriptのテンプレートリテラル内で安全に使用できるよう、
+ * 特殊文字をエスケープする
+ */
+function escapeTemplateLiteral(str) {
+  if (!str) return '';
+  return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
 }
