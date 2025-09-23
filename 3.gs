@@ -15,53 +15,58 @@ function doPost(e) {
   };
 
   try {
-    const params = JSON.parse(e.postData.contents);
+    const params = e.postData ? JSON.parse(e.postData.contents) : {};
     const action = params.action;
-    const aiModel = params.aiModel;
-    let slideData;
 
-    if (action === 'generate_new') {
-      Logger.log("【フロー1】新規生成を開始します。");
+    // ▼▼▼▼▼ この分岐が正しいアーキテクチャです ▼▼▼▼▼
+    if (action === 'get_slide_data') {
+      // アクション1: AIからslideData文字列を取得して返す
+      Logger.log("AIからslideDataの取得を開始します。");
       const userPrompt = params.prompt;
+      const aiModel = params.aiModel;
       if (!userPrompt) throw new Error("プロンプトが空です。");
-
-      const slideDataString = getSlideDataFromAI_gas(userPrompt, aiModel);
-      PropertiesService.getScriptProperties().setProperty('LAST_SLIDE_DATA', slideDataString);
-      slideData = parseSlideData(slideDataString);
-
-    } else if (action === 'regenerate_only') {
-      Logger.log("【フロー2】デザイン反映による再生成を開始します。");
-      const slideDataString = PropertiesService.getScriptProperties().getProperty('LAST_SLIDE_DATA');
-      if (!slideDataString) {
-        throw new Error("再生成するスライドデータが見つかりません。先に一度「全自動で生成」を実行してください。");
-      }
-      slideData = parseSlideData(slideDataString);
       
+      const slideDataString = getSlideDataFromAI_gas(userPrompt, aiModel);
+      
+      // 生成した文字列をJSONとして拡張機能に返す
+      return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          slideDataString: slideDataString,
+          logs: logs
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+
+    } else if (action === 'generate_slides') {
+      // アクション2: プロジェクト内のslideDataを使ってスライドを生成
+      Logger.log("スライド生成を開始します。");
+      
+      // slideDataは別ファイル(2.gs)で定義されているグローバル変数
+      if (typeof slideData === 'undefined' || !slideData) {
+        throw new Error("slideDataがプロジェクト内(2.gs)に見つかりません。");
+      }
+      
+      validateSlideData(slideData);
+      generatePresentation(slideData);
+
+      return ContentService.createTextOutput(JSON.stringify({ 
+          status: "success", 
+          message: "スライドの生成が完了しました。",
+          logs: logs
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+        
     } else {
       throw new Error(`不明なアクションです: ${action}`);
     }
-
-    Logger.log("--- generatePresentationに渡す直前のslideData ---");
-    Logger.log(JSON.stringify(slideData, null, 2));
-    
-    validateSlideData(slideData); // AIの出力を検証
-    
-    generatePresentation(slideData);
-
-    return ContentService.createTextOutput(JSON.stringify({ 
-        "status": "success", 
-        "message": "スライドの生成が完了しました。",
-        "logs": logs
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   } catch (err) {
     logs.push(`[CRITICAL ERROR] ${err.message}`);
     logs.push(`[STACK] ${err.stack}`);
+    let userMessage = 'GAS側で不明なエラーが発生しました。';
+    // ... (エラーメッセージ分岐)
     return ContentService.createTextOutput(JSON.stringify({ 
-        "status": "error", 
-        "message": err.message,
-        "logs": logs
+        "status": "error", "message": userMessage, "logs": logs 
       }))
       .setMimeType(ContentService.MimeType.JSON);
   } finally {

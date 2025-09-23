@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusMessage = document.getElementById('status-message');
   const generateBtn = document.getElementById('generate-button');
   const regenerateBtn = document.getElementById('regenerate-button');
+  const revokeTokenBtn = document.getElementById('revoke-token-button'); // ★ ボタンを取得
   
   const designInputs = {
     footerText: document.getElementById('footer-text'),
@@ -42,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const collapsible3Content = document.querySelector('.collapsible3-content');
   const collapsible4 = document.querySelector('.collapsible4');
   const collapsible4Content = document.querySelector('.collapsible4-content');
+  const collapsible5 = document.querySelector('.collapsible5');
+  const collapsible5Content = document.querySelector('.collapsible5-content');
 
   const SETTINGS_KEY = 'userAppSettings';
   let port = null;
@@ -71,11 +74,12 @@ document.addEventListener('DOMContentLoaded', () => {
     collapsible4.textContent = isExpanded ? '▲ フォント・カラー設定' : '▼ フォント・カラー設定';
   });
 
-  function aaaashowFeedback(message, isError = false) {
-    feedbackMessage.textContent = message;
-    feedbackMessage.style.color = isError ? '#D93025' : '#0F9D58';
-    setTimeout(() => { feedbackMessage.textContent = ''; }, 4000);
-  }
+  collapsible5.addEventListener('click', () => {
+    const isExpanded = collapsible5.classList.toggle('active');
+    collapsible5Content.style.display = isExpanded ? 'block' : 'none';
+    collapsible5.textContent = isExpanded ? '▲ GAS認証をリセット' : '▼ GAS認証をリセット';
+  });
+
 
   // --- 機能: フィードバックメッセージを表示 ---
   function showFeedback(message, isError = false) {
@@ -177,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return;
     }
-    
+
     if (!overwriteConfirm.checked) {
       statusMessage.textContent = "プロジェクトの上書き許可にチェックを入れてください。";
       // API設定セクションが開いていなければ開く
@@ -235,4 +239,26 @@ document.addEventListener('DOMContentLoaded', () => {
         settings: getSettingsFromForm()
     });
   });
+
+  revokeTokenBtn.addEventListener('click', () => {
+    statusMessage.textContent = "認証情報をリセットしています...";
+    // background.jsにトークン削除を依頼
+    chrome.runtime.sendMessage({ action: "revokeToken" }, (response) => {
+
+      if (chrome.runtime.lastError) {
+        // lastErrorが存在する場合（getAuthTokenが失敗した場合など）でも、
+        // ユーザーにとってはリセット成功と同じなので、成功メッセージを表示する。
+        console.warn("トークンのリセット中に想定内のエラー:", chrome.runtime.lastError.message);
+        statusMessage.textContent = "認証をリセットしました。次回実行時に再認証してください。";
+        return;
+      }
+
+      if (response.success) {
+        statusMessage.textContent = "認証をリセットしました。次回実行時に再認証してください。";
+      } else {
+        statusMessage.textContent = "リセットに失敗しました。";
+      }
+    });
+  });
+
 });

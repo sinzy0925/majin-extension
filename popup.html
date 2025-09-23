@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <style>
-    body { width: 250px; padding: 10px; font-family: sans-serif; box-sizing: border-box; }
+    body { width: 260px; padding: 5px; font-family: sans-serif; box-sizing: border-box; }
     h3 { text-align: center; margin-bottom: 10px; }
     h4 { text-align: left; font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
     
@@ -22,17 +22,20 @@
     .settings-group2 { margin-top: 1px; background-color: #e0ffff; padding: 0px; border-radius: 10px; }
     .settings-group3 { margin-top: 1px; background-color: #d0ffff; padding: 0px; border-radius: 10px; }
     .settings-group4 { margin-top: 1px; background-color: #c0ffff; padding: 0px; border-radius: 10px; }
+    .settings-group5 { margin-top: 1px; background-color: #ffe875; padding: 0px; border-radius: 10px; }
 
     .collapsible1, 
     .collapsible2, 
     .collapsible3, 
-    .collapsible4 {
+    .collapsible4, 
+    .collapsible5 {
        cursor: pointer; user-select: none; font-weight: bold; text-align: left; }
     
     .collapsible1-content, 
     .collapsible2-content, 
     .collapsible3-content, 
-    .collapsible4-content { 
+    .collapsible4-content,
+    .collapsible5-content { 
       padding-top: 10px; display: none; overflow: hidden; }
 
     .settings-item { display: flex; align-items: center; margin-bottom: 12px; }
@@ -53,7 +56,15 @@
     #feedback-message { flex: 1; font-size: 14px; color: #0F9D58; padding-left: 10px; }
 
 
-    #status-message { margin-top: 15px; font-size: 14px; min-height: 20px; text-align: center; color: #333; padding: 8px; border-radius: 4px; background-color: #e8f0fe; }
+    #status-message { 
+      margin-top: 15px; 
+      font-size: 14px; 
+      min-height: 20px; 
+      text-align: left; 
+      color: #333; 
+      padding: 8px; 
+      border-radius: 4px; 
+      background-color: #e8f0fe; }
 
     .vertical-item { flex-direction: column; align-items: flex-start; }
     .vertical-item label { margin-top: 1px; margin-bottom: 1px; padding-right: 0; flex: none; }
@@ -76,6 +87,11 @@
       <div style="background-color: #fff8e1; border: 1px solid #ffecb3; border-radius: 4px; padding: 8px; margin-bottom: 10px; font-size: 12px; color: #616161;">
         <strong>【重要】</strong> ここには、この拡張機能専用の<b>空のGoogle Apps Scriptプロジェクト</b>のIDを指定してください。既存のスクリプトが入っているIDを指定すると、<b>警告なしに内容がすべて上書きされ、復元できません。</b>
       </div>
+      <div class="settings-item" style="margin-top: 15px; align-items: flex-start;">
+        <input type="checkbox" id="overwrite-confirm" style="width: auto; margin-right: 8px; margin-top: 2px; flex-shrink: 0;">
+        <span style="background-color: #fff8e1; font-size: 12px; color: #333; user-select: none; line-height: 1.4;">上記のリスクを理解し、プロジェクトの上書きを許可します。</span>
+      </div>
+
       <div class="settings-item vertical-item">
         <label for="script-id">Script ID</label>
         <input type="text" id="script-id">
@@ -87,10 +103,6 @@
       <div class="settings-item vertical-item">
         <label for="ai-model">AI Model</label>
         <input type="text" id="ai-model">
-      </div>
-      <div class="settings-item" style="margin-top: 15px;">
-        <input type="checkbox" id="overwrite-confirm" style="width: auto; margin-right: 8px;">
-        <label for="overwrite-confirm" style="flex: 1; font-size: 12px; user-select: none;">上記のリスクを理解し、プロジェクトの上書きを許可します。</label>
       </div>
     </div>
   </div>
@@ -177,6 +189,18 @@
           <label for="dir-diag-rl">右上<br/>↓<br/>左下</label>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="settings-group5">
+    <h4 class="collapsible5">▼ GAS認証をリセット（トークン初期化）</h4>
+    <div class="collapsible5-content">
+
+      <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+        <button id="revoke-token-button" style="width:100%; background-color: #db4437; color: white; font-size: 13px; padding: 8px;">GAS認証をリセット（トークン初期化）</button>
+        <p style="font-size: 11px; color: #666; margin-top: 5px;">認証エラーが続く場合や、アカウントを切り替えたい場合にお試しください。</p>
+      </div>
+
     </div>
   </div>
 
