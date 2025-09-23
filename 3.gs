@@ -1,36 +1,175 @@
+// 3.gs (最終修正版・省略なし)
+
 // --- 4. メイン実行関数（エントリーポイント） ---
-let __SECTION_COUNTER = 0; // 章番号カウンタ（ゴースト数字用）
+let __SECTION_COUNTER = 0;
+
+/**
+ * 拡張機能からのPOSTリクエストを処理するメインの入り口
+ */
+function doPost(e) {
+  const logs = [];
+  const originalLoggerLog = Logger.log;
+  Logger.log = function(data) {
+    logs.push(formatLog(data));
+    originalLoggerLog.apply(Logger, arguments);
+  };
+
+  try {
+    const params = JSON.parse(e.postData.contents);
+    const action = params.action;
+    const aiModel = params.aiModel;
+    let slideData;
+
+    if (action === 'generate_new') {
+      Logger.log("【フロー1】新規生成を開始します。");
+      const userPrompt = params.prompt;
+      if (!userPrompt) throw new Error("プロンプトが空です。");
+
+      const slideDataString = getSlideDataFromAI_gas(userPrompt, aiModel);
+      PropertiesService.getScriptProperties().setProperty('LAST_SLIDE_DATA', slideDataString);
+      slideData = parseSlideData(slideDataString);
+
+    } else if (action === 'regenerate_only') {
+      Logger.log("【フロー2】デザイン反映による再生成を開始します。");
+      const slideDataString = PropertiesService.getScriptProperties().getProperty('LAST_SLIDE_DATA');
+      if (!slideDataString) {
+        throw new Error("再生成するスライドデータが見つかりません。先に一度「全自動で生成」を実行してください。");
+      }
+      slideData = parseSlideData(slideDataString);
+      
+    } else {
+      throw new Error(`不明なアクションです: ${action}`);
+    }
+
+    Logger.log("--- generatePresentationに渡す直前のslideData ---");
+    Logger.log(JSON.stringify(slideData, null, 2));
+    
+    generatePresentation(slideData);
+
+    return ContentService.createTextOutput(JSON.stringify({ 
+        "status": "success", 
+        "message": "スライドの生成が完了しました。",
+        "logs": logs
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    logs.push(`[CRITICAL ERROR] ${err.message}`);
+    logs.push(`[STACK] ${err.stack}`);
+    return ContentService.createTextOutput(JSON.stringify({ 
+        "status": "error", 
+        "message": err.message,
+        "logs": logs
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    Logger.log = originalLoggerLog;
+  }
+}
+
+/**
+ * 【新設】GASからGemini APIを呼び出す関数
+ */
+function getSlideDataFromAI_gas(userPrompt, aiModel) {
+  const props = PropertiesService.getScriptProperties();
+  const API_KEY = props.getProperty('GEMINI_API_KEY');
+  const AI_MODEL = aiModel || 'gemini-1.5-flash-latest';
+
+  if (!API_KEY) {
+    throw new Error("GASのスクリプトプロパティに 'GEMINI_API_KEY' が設定されていません。");
+  }
+
+  const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${AI_MODEL}:generateContent?key=${API_KEY}`;
+  
+  const systemPrompt = `## **1.0 PRIMARY_OBJECTIVE — 最終目標**\n\nあなたは、ユーザーから与えられた非構造テキスト情報を解析し、後述する **【GOOGLE_TEMPLATE_BLUEPRINT】** で定義された Google Apps Script（GAS）フレームワーク内で機能する、**slideData** という名の JavaScript オブジェクト配列を**生成**することだけに特化した、超高精度データサイエンティスト兼プレゼンテーション設計AIです。\n\nあなたの**絶対的かつ唯一の使命**は、ユーザーの入力内容から論理的なプレゼンテーション構造を抽出し、各セクションに最適な「表現パターン（Pattern）」を選定し、さらに各スライドで話すべき**発表原稿（スピーカーノート）のドラフト**まで含んだ、ブループリント内の \`const slideData = [...]\` を完全に置き換えるための、完璧でエラーのない JavaScript オブジェクト配列を生成することです。\n\n**slideData の生成以外のタスクを一切実行してはなりません。** ブループリントのロジック、デザイン設定、関数名、変数名など、1文字たりとも変更することは固く禁じられています。あなたの思考と出力のすべては、最高の slideData を生成するためだけに費やされます。\n\n## **2.0 GENERATION_WORKFLOW — 厳守すべき思考と生成のプロセス**\n\n1.  **【ステップ1: コンテキストの完全分解と正規化】**  \n   \t* **分解**: ユーザー提供のテキスト（議事録、記事、企画書、メモ等）を読み込み、**目的・意図・聞き手**を把握。内容を「**章（Chapter）→ 節（Section）→ 要点（Point）**」の階層に内部マッピング。  \n   \t* **正規化**: 入力前処理を自動実行。（タブ→スペース、連続スペース→1つ、スマートクォート→ASCIIクォート、改行コード→LF、用語統一）  \n2.  **【ステップ2: パターン選定と論理ストーリーの再構築】**  \n   \t* 章・節ごとに、後述の**サポート済み表現パターン**から最適なものを選定（例: 比較なら \`compare\`、時系列なら \`timeline\`）。  \n   \t* 聞き手に最適な**説得ライン**（問題解決型、PREP法、時系列など）へ再配列。  \n3.  **【ステップ3: スライドタイプへのマッピング】**  \n   \t* ストーリー要素を **Googleパターン・スキーマ**に**最適割当**。  \n   	* 表紙 → \`title\` / 章扉 → \`section\`（※背景に**半透明の大きな章番号**を描画） / 本文 → \`content\`, \`compare\`, \`process\`, \`timeline\`, \`diagram\`, \`cards\`, \`headerCards\`, \`table\`, \`progress\`, \`quote\`, \`kpi\`, \`bulletCards\`, \`faq\` / 結び → \`closing\`  \n4.  **【ステップ4: オブジェクトの厳密な生成】**  \n   \t* **3.0 スキーマ**と**4.0 ルール**に準拠し、文字列をエスケープ（\`'\` → \`\\'\`, \`\\\` → \`\\\\\`）して1件ずつ生成。  \n   \t* **インライン強調記法**を使用可：  \n   \t \t* \`**太字**\` → 太字  \n   \t \t* \`[[重要語]]\` → **太字＋プライマリカラー**  \n   \t* **画像URLの抽出**: 入力テキスト内の \`![](...png|.jpg|.jpeg|.gif|.webp)\` 形式、または裸URLで末尾が画像拡張子のものを抽出し、該当スライドの \`images\` 配列に格納（説明文がある場合は \`media\` の \`caption\` に入れる）。  \n   	* **スピーカーノート生成**: 各スライドの内容に基づき、発表者が話すべき内容の**ドラフトを生成**し、\`notes\`プロパティに格納する。  \n5.  **【ステップ5: 自己検証と反復修正】**  \n   	* **チェックリスト**:  \n   	* 文字数・行数・要素数の上限遵守（各パターンの規定に従うこと）  \n   	* 箇条書き要素に**改行（\`\\n\`）を含めない**  \n   	* テキスト内に**禁止記号**（\`■\` / \`→\`）を含めない（※装飾・矢印はスクリプトが描画）  \n   	* 箇条書き文末に **句点「。」を付けない**（体言止め推奨）  \n   	* **notesプロパティが各スライドに適切に設定されているか確認**  \n   	* \`title.date\`は\`YYYY.MM.DD\`形式  \n   	* **アジェンダ安全装置**: 「アジェンダ/Agenda/目次/本日お伝えすること」等のタイトルで \`points\` が空の場合、**章扉（\`section.title\`）から自動生成**するため、空配列を返さず **ダミー3点**以上を必ず生成  \n6.  **【ステップ6: 最終出力】**  \n   \t* 検証済みオブジェクトを論理順に \`const slideData = [...]\` に格納。**【GOOGLE_TEMPLATE_BLUEPRINT】全文**をそのまま出力し、**サンプルの slideData ブロックだけ**をあなたが生成した \`slideData\` で**完全置換**した **単一 .gs ファイルの中身**のみを出力すること。**解説・前置き・後書き一切禁止**。\n\n## **3.0 slideDataスキーマ定義（GooglePatternVer.+SpeakerNotes）**\n\n**共通プロパティ**\n\n  * \`notes?: string\`: すべてのスライドオブジェクトに任意で追加可能。スピーカーノートに設定する発表原稿のドラフト（プレーンテキスト）。\n\n**スライドタイプ別定義**\n\n  * **タイトル**: \`{ type: 'title', title: '...', date: 'YYYY.MM.DD', notes?: '...' }\`  \n  * **章扉**: \`{ type: 'section', title: '...', sectionNo?: number, notes?: '...' }\` ※\`sectionNo\` を指定しない場合は自動連番  \n  * **クロージング**: \`{ type: 'closing', notes?: '...' }\`\n\n**本文パターン（必要に応じて選択）**\n\n  * **content（1カラム/2カラム＋画像＋小見出し）** \`{ type: 'content', title: '...', subhead?: string, points?: string[], twoColumn?: boolean, columns?: [string[], string[]], images?: (string | { url: string, caption?: string })[], notes?: '...' }\`  \n  \n  * **compare（対比）** \`{ type: 'compare', title: '...', subhead?: string, leftTitle: '...', rightTitle: '...', leftItems: string[], rightItems: string[], images?: string[], notes?: '...' }\`  \n  * **process（手順・工程）** \`{ type: 'process', title: '...', subhead?: string, steps: string[], images?: string[], notes?: '...' }\`  \n  * **timeline（時系列）** \`{ type: 'timeline', title: '...', subhead?: string, milestones: { label: string, date: string, state?: 'done'|'next'|'todo' }[], images?: string[], notes?: '...' }\`  \n  * **diagram（レーン図）** \`{ type: 'diagram', title: '...', subhead?: string, lanes: { title: string, items: string[] }[], images?: string[], notes?: '...' }\`  \n  * **cards（シンプルカード）** \`{ type: 'cards', title: '...', subhead?: string, columns?: 2|3, items: (string | { title: string, desc?: string })[], images?: string[], notes?: '...' }\`  \n  * **headerCards（ヘッダー付きカード）** \`{ type: 'headerCards', title: '...', subhead?: string, columns?: 2|3, items: { title: string, desc?: string }[], images?: string[], notes?: '...' }\`\n  * **table（表）** \`{ type: 'table', title: '...', subhead?: string, headers: string[], rows: string[][], notes?: '...' }\`  \n  * **progress**（進捗） \`{ type: 'progress', title: '...', subhead?: string, items: { label: string, percent: number }[], notes?: '...' }\`  \n  * **quote**（引用） \`{ type: 'quote', title: '...', subhead?: string, text: string, author: string, notes?: '...' }\`  \n  * **kpi**（KPIカード） \`{ type: 'kpi', title: '...', subhead?: string, columns?: 2|3|4, items: { label: string, value: string, change: string, status: 'good'|'bad'|'neutral' }[], notes?: '...' }\`  \n  * **bulletCards**（箇条書きカード） \`{ type: 'bulletCards', title: '...', subhead?: string, items: { title: string, desc: string }[], notes?: '...' }\` ※最大3項目  \n  * **faq**（よくある質問） \`{ type: 'faq', title: '...', subhead?: string, items: { q: string, a: string }[], notes?: '...' }\`\n  * **statsCompare**（数値比較） \`{ type: 'statsCompare', title: '...', subhead?: string, leftTitle: '...', rightTitle: '...', stats: { label: string, leftValue: string, rightValue: string, trend?: 'up'|'down'|'neutral' }[], notes?: '...' }\`\n\n\n## **4.0 COMPOSITION_RULES（GooglePatternVer.） — 美しさと論理性を最大化する絶対規則**\n\n  * **全体構成**:  \n    1. \`title\`（表紙）  \n    2. \`content\`（アジェンダ、※章が2つ以上のときのみ）  \n    3. \`section\`  \n    4. 本文（\`content\`/\`compare\`/\`process\`/\`timeline\`/\`diagram\`/\`cards\`/\`headerCards\`/\`table\`/\`progress\`/\`quote\`/\`kpi\`/\`bulletCards\`/\`faq\` から2〜5枚）  \n    5. （3〜4を章の数だけ繰り返し）  \n    6. \`closing\`（結び）  \n  * **テキスト表現・字数**（最大目安）:  \n   \t* \`title.title\`: 全角35文字以内  \n   \t* \`section.title\`: 全角30文字以内  \n   \t* 各パターンの \`title\`: 全角40文字以内  \n   	* \`subhead\`: 全角50文字以内（フォント18）  \n   	* 箇条書き等の要素テキスト: 各90文字以内・**改行禁止**  \n   	* \`notes\`（スピーカーノート）: 発表内容を想定したドラフト。**プレーンテキスト**とし、強調記法は用いないこと。  \n   	* **禁止記号**: \`■\` / \`→\` を含めない（矢印や区切りはスクリプト側が描画）  \n   	* 箇条書き文末の句点「。」**禁止**（体言止め推奨）  \n   	* **インライン強調記法**: \`**太字**\` と \`[[重要語]]\`（太字＋プライマリカラー）を必要箇所に使用可\n\n## **5.0 SAFETY_GUIDELINES — GASエラー回避とAPI負荷の配慮**\n\n  * スライド上限: **最大50枚**  \n  * 画像制約: **50MB未満・25MP以下**の **PNG/JPEG/GIF/WebP**  \n  * 実行時間: Apps Script 全体で約 **6分**  \n  * テキストオーバーフロー回避: 本命令の**上限値厳守**  \n  * フォント: Arial が無い環境では標準サンセリフに自動フォールバック  \n  * 文字列リテラルの安全性: \`'\` と \`\\\` を確実にエスケープ  \n  * **画像挿入の堅牢性**: ロゴ画像の挿入に失敗した場合でも画像部分をスキップして、テキストや図形などの他の要素は正常に描画を継続  \n  * **実行堅牢性**: スライド1枚の生成でエラー（例: 不正な画像URL）が発生しても**全体の処理が停止しない**よう、\`try-catch\`構文によるエラーハンドリングが実装されています。\n\n## **6.0 OUTPUT_FORMAT — 最終出力形式**\n\n**【最重要】**\nあなたの唯一の出力は、ユーザープロンプトを解析して生成した \`const slideData = [...]\` という**JavaScriptのコードブロックのみ**です。\n\n以下のルールを**絶対に**守ってください。\n\n*   \`const slideData = [\` で始まり、 \`];\` で終わるコードブロックだけを出力します。\n*   \`/** ... */\` のようなファイルの先頭コメントや、その他の説明文は一切含めないでください。\n*   \`generatePresentation\` や \`createTitleSlide\` などの関数定義は一切含めないでください。\n*   コードブロックの前後に、解説、言い訳、挨拶、\` \`\`javascript \` のようなMarkdownのコードフェンスなどを一切付けないでください。\n\n**【正しい出力形式の例】**\n\`\`\`javascript\nconst slideData = [\n  { type: 'title', title: 'Google Workspace 新機能提案', date: '2025.08.24', notes: '本日は、AIを活用した新しいコラボレーション機能についてご提案します。' },\n  {\n    type: 'bulletCards',\n    title: '提案する3つの新機能',\n    subhead: 'チームの生産性をさらに向上させるためのコンセプト',\n    items: [\n      {\n        title: 'AIミーティングサマリー',\n        desc: 'Google Meetでの会議内容をAIが自動で要約し、[[決定事項とToDoリストを自動生成]]します。'\n      },\n      {\n        title: 'スマート・ドキュメント連携',\n        desc: 'DocsやSheetsで関連するファイルやデータをAIが予測し、[[ワンクリックで参照・引用]]できるようにします。'\n      },\n      {\n        title: 'インタラクティブ・チャット',\n        desc: 'Google Chat内で簡易的なアンケートや投票、承認フローを[[コマンド一つで実行]]可能にします。'\n      }\n    ],\n    notes: '今回ご提案するのは、この3つの新機能です。それぞれが日々の業務の非効率を解消し、チーム全体の生産性向上を目指しています。'\n  },\n  {\n    type: 'faq',\n    title: '想定されるご質問',\n    subhead: '本提案に関するQ&A',\n    items: [\n      { q: '既存のプランで利用できますか？', a: 'はい、Business Standard以上のすべてのプランで、追加料金なしでご利用いただける想定です。' },\n      { q: '対応言語はどうなりますか？', a: '初期リリースでは日本語と英語に対応し、順次対応言語を拡大していく計画です。' },\n      { q: 'セキュリティは考慮されていますか？', a: 'もちろんです。すべてのデータは既存のGoogle Workspaceの[[堅牢なセキュリティ基準]]に準拠して処理されます。' }\n    ],\n    notes: 'ご提案にあたり、想定される質問をまとめました。ご不明な点がございましたら、お気軽にご質問ください。'\n  },\n  { type: 'closing', notes: '本日のご提案は以上です。ご清聴いただき、ありがとうございました。' }\n];\`\`\``;
+
+  const payload = {
+    contents: [{ parts: [{ text: systemPrompt + "\n\n---\n\n" + userPrompt }] }],
+    safetySettings: [
+      { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+      { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" }, { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+    ]
+  };
+
+  const options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'payload': JSON.stringify(payload),
+    'muteHttpExceptions': true
+  };
+
+  Logger.log("Gemini APIにリクエストを送信します...");
+  const response = UrlFetchApp.fetch(API_URL, options);
+  const responseCode = response.getResponseCode();
+  const responseBody = response.getContentText();
+
+  if (responseCode !== 200) {
+    throw new Error(`AI APIエラー (HTTP ${responseCode}): ${responseBody}`);
+  }
+
+  const data = JSON.parse(responseBody);
+  if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content.parts[0].text) {
+    throw new Error("AIからの応答が不正です。");
+  }
+  
+  Logger.log("AIから正常な応答を受信しました。");
+  return data.candidates[0].content.parts[0].text;
+}
+
+/**
+ * 【新設】AIの応答文字列からslideDataオブジェクトを安全に抽出・パースする関数
+ */
+function parseSlideData(slideDataString) {
+  Logger.log("slideDataのパースを開始します...");
+  let rawJson = slideDataString.trim();
+  rawJson = rawJson.replace(/^```javascript\s*|\s*```\s*$/g, '');
+  const startIndex = rawJson.indexOf('[');
+  const endIndex = rawJson.lastIndexOf(']');
+  
+  if (startIndex === -1 || endIndex === -1) {
+    throw new Error("AIの応答に `[` または `]` が見つかりません。slideDataの形式が不正です。");
+  }
+  
+  rawJson = rawJson.substring(startIndex, endIndex + 1);
+  
+  try {
+    const slideData = new Function(`return ${rawJson};`)();
+    Logger.log(`パース成功。${slideData.length}枚のスライドデータを取得しました。`);
+    return slideData;
+  } catch (e) {
+    Logger.log(`slideDataのパースに失敗しました: ${e.message}`);
+    Logger.log(`問題の文字列: ${rawJson}`);
+    throw new Error("AIが生成したslideDataの構文解析に失敗しました。");
+  }
+}
 
 /**
  * プレゼンテーション生成のメイン関数
- * 実行時間: 約3-6分
- * 最大スライド数: 50枚
+ * @param {Array<Object>} slideData AIによって生成されたスライドデータ
  */
-function generatePresentation() {
+function generatePresentation(slideData) {
   const startTime = new Date();
   Logger.log("スライド生成処理を開始します...");
-  const userSettings = PropertiesService.getScriptProperties().getProperties();
 
-  const props = PropertiesService.getScriptProperties(); // ★削除操作のために別途取得
-  // ▼▼▼ 【自動チェック＆削除機能】ここから ▼▼▼
-  const URL_MAX_LENGTH = 2000; // 安全マージンをとったURLの最大長
-  // ヘッダーロゴURLをチェック
+  if (!slideData || !Array.isArray(slideData)) {
+    throw new Error("generatePresentationに渡されたslideDataが無効です。");
+  }
+  
+  const userSettings = PropertiesService.getScriptProperties().getProperties();
+  const props = PropertiesService.getScriptProperties();
+
   if (userSettings.headerLogoUrl) {
     const savedUrl = userSettings.headerLogoUrl;
-    if (savedUrl.startsWith('data:image/') || savedUrl.length > URL_MAX_LENGTH) {
-      Logger.log(`[自動修復] 不正なヘッダーロゴURLを検出したため削除します。URL: ${savedUrl.substring(0, 50)}...`);
-      props.deleteProperty('headerLogoUrl');    // サーバーから設定を削除
-      delete userSettings.headerLogoUrl;      // 今回の実行で使われないよう、読み込んだオブジェクトからも削除
+    if (savedUrl.startsWith('data:image/') || savedUrl.length > 2000) {
+      props.deleteProperty('headerLogoUrl');
+      delete userSettings.headerLogoUrl;
     }
   }
-
-  // クロージングロゴURLも同様にチェック
   if (userSettings.closingLogoUrl) {
     const savedUrl = userSettings.closingLogoUrl;
-    if (savedUrl.startsWith('data:image/') || savedUrl.length > URL_MAX_LENGTH) {
-      Logger.log(`[自動修復] 不正なクロージングロゴURLを検出したため削除します。URL: ${savedUrl.substring(0, 50)}...`);
-      props.deleteProperty('closingLogoUrl'); // サーバーから設定を削除
-      delete userSettings.closingLogoUrl;   // 今回の実行で使われないよう、読み込んだオブジェクトからも削除
+    if (savedUrl.startsWith('data:image/') || savedUrl.length > 2000) {
+      props.deleteProperty('closingLogoUrl');
+      delete userSettings.closingLogoUrl;
     }
   }
 
@@ -40,84 +179,111 @@ function generatePresentation() {
   if (userSettings.closingLogoUrl) CONFIG.LOGOS.closing = userSettings.closingLogoUrl;
   if (userSettings.fontFamily) CONFIG.FONTS.family = userSettings.fontFamily;
 
-  let presentation;
-  try {
-    presentation = SETTINGS.TARGET_PRESENTATION_ID
-      ? SlidesApp.openById(SETTINGS.TARGET_PRESENTATION_ID)
-      : SlidesApp.getActivePresentation();
-    if (!presentation) throw new Error('対象のプレゼンテーションが見つかりません。');
+  let presentation = SETTINGS.TARGET_PRESENTATION_ID
+    ? SlidesApp.openById(SETTINGS.TARGET_PRESENTATION_ID)
+    : SlidesApp.getActivePresentation();
+  if (!presentation) throw new Error('対象のプレゼンテーションが見つかりません。');
 
-    // ▼▼▼ この部分を追加 ▼▼▼
-    const newFileName = slideData[0].title; // 最初のスライドのタイトルを取得
-    if (newFileName) {
-      presentation.setName(newFileName); // プレゼンテーションの名前を設定
-    }
-    // ▲▲▲ 追加はここまで ▲▲▲
+  if (slideData[0] && slideData[0].title) {
+    presentation.setName(slideData[0].title);
+  }
 
+  if (SETTINGS.SHOULD_CLEAR_ALL_SLIDES) {
+    const slides = presentation.getSlides();
+    for (let i = slides.length - 1; i >= 0; i--) slides[i].remove();
+  }
 
-    if (SETTINGS.SHOULD_CLEAR_ALL_SLIDES) {
-      const slides = presentation.getSlides();
-      for (let i = slides.length - 1; i >= 0; i--) slides[i].remove();
-    }
+  __SECTION_COUNTER = 0;
+  const layout = createLayoutManager(presentation.getPageWidth(), presentation.getPageHeight());
 
-    __SECTION_COUNTER = 0;
+  let pageCounter = 0;
+  for (const data of slideData) {
+    try {
+      const generator = slideGenerators[data.type];
+      if (data.type !== 'title' && data.type !== 'closing') pageCounter++;
+      if (generator) {
+        const slide = presentation.appendSlide(SlidesApp.PredefinedLayout.BLANK);
+        generator(slide, data, layout, pageCounter);
 
-    const layout = createLayoutManager(presentation.getPageWidth(), presentation.getPageHeight());
-
-    let pageCounter = 0;
-    for (const data of slideData) {
-      try {
-        const generator = slideGenerators[data.type];
-        if (data.type !== 'title' && data.type !== 'closing') pageCounter++;
-        if (generator) {
-          const slide = presentation.appendSlide(SlidesApp.PredefinedLayout.BLANK);
-          generator(slide, data, layout, pageCounter);
-
-          if (data.notes) {
-            try {
-              const notesShape = slide.getNotesPage().getSpeakerNotesShape();
-              if (notesShape) {
-                notesShape.getText().setText(data.notes);
-              }
-            } catch (e) {
-              Logger.log(`スピーカーノートの設定に失敗しました: ${e.message}`);
+        if (data.notes) {
+          try {
+            const notesShape = slide.getNotesPage().getSpeakerNotesShape();
+            if (notesShape) {
+              notesShape.getText().setText(data.notes);
             }
+          } catch (e) {
+            Logger.log(`スピーカーノートの設定に失敗しました: ${e.message}`);
           }
         }
-      } catch (e) {
-        Logger.log(`スライドの生成をスキップしました (エラー発生)。 Type: ${data.type}, Title: ${data.title || 'N/A'}, Error: ${e.message}`);
       }
+    } catch (e) {
+      Logger.log(`スライドの生成をスキップしました (エラー発生)。 Type: ${data.type}, Title: ${data.title || 'N/A'}, Error: ${e.message}`);
     }
-
-  } catch (e) {
-    Logger.log(`処理が中断されました: ${e.message}\nStack: ${e.stack}`);
-  } finally {
-    // --- ▼▼▼ 時間計測終了 & ログ出力 ▼▼▼ ---
-    const endTime = new Date();
-    const executionTime = (endTime.getTime() - startTime.getTime()) / 1000; // ミリ秒を秒に変換
-    Logger.log(`スライド生成処理が終了しました。`);
-    Logger.log(`実行時間: ${executionTime.toFixed(2)} 秒`);
-    // --- ▲▲▲ ---
   }
+
+  const endTime = new Date();
+  const executionTime = (endTime.getTime() - startTime.getTime()) / 1000;
+  Logger.log(`スライド生成処理が終了しました。実行時間: ${executionTime.toFixed(2)} 秒`);
 }
 
 // --- 5. カスタムメニュー設定関数 ---
 function onOpen(e) {
-  SlidesApp.getUi()
-    .createMenu('カスタム設定')
-    .addItem('🎨 スライドを生成', 'generatePresentation')
-    .addSeparator()
-    .addSubMenu(SlidesApp.getUi().createMenu('⚙️ 設定')
+  const menu = SlidesApp.getUi().createMenu('カスタム設定');
+  menu.addItem('🎨 スライドを生成（手動実行）', 'manualGeneratePresentation');
+  menu.addSeparator();
+  menu.addSubMenu(SlidesApp.getUi().createMenu('⚙️ 設定')
+      .addItem('Gemini APIキー', 'setGeminiApiKey')
       .addItem('プライマリカラー', 'setPrimaryColor')
       .addItem('フォント', 'setFont')
       .addItem('フッターテキスト', 'setFooterText')
       .addItem('ヘッダーロゴ', 'setHeaderLogo')
-      .addItem('クロージングロゴ', 'setClosingLogo'))
-    .addItem('🔄 リセット', 'resetSettings')
-    .addToUi();
+      .addItem('クロージングロゴ', 'setClosingLogo'));
+  menu.addItem('🔄 全設定をリセット', 'resetSettings');
+  menu.addToUi();
 }
 
-// プライマリカラー設定
+function manualGeneratePresentation() {
+  const ui = SlidesApp.getUi();
+  const result = ui.prompt('手動実行', 'スライドにしたい内容を貼り付けてください:', ui.ButtonSet.OK_CANCEL);
+  if (result.getSelectedButton() === ui.Button.OK) {
+    const prompt = result.getResponseText();
+    if (prompt) {
+      try {
+        const slideDataString = getSlideDataFromAI_gas(prompt, null);
+        const slideData = parseSlideData(slideDataString);
+        generatePresentation(slideData);
+        ui.alert('スライドの生成が完了しました。');
+      } catch(e) {
+        ui.alert(`エラーが発生しました: ${e.message}`);
+      }
+    }
+  }
+}
+
+function setGeminiApiKey() {
+  const ui = SlidesApp.getUi();
+  const props = PropertiesService.getScriptProperties();
+  const currentValue = props.getProperty('GEMINI_API_KEY');
+  const displayValue = currentValue ? `設定済み (末尾: ...${currentValue.slice(-4)})` : '未設定';
+
+  const result = ui.prompt(
+    'Gemini APIキー設定',
+    `Gemini APIキーを入力してください\n現在値: ${displayValue}\n\n空欄でOKを押すと、設定が削除されます。`,
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (result.getSelectedButton() === ui.Button.OK) {
+    const value = result.getResponseText().trim();
+    if (value === '') {
+      props.deleteProperty('GEMINI_API_KEY');
+      ui.alert('Gemini APIキーを削除しました。');
+    } else {
+      props.setProperty('GEMINI_API_KEY', value);
+      ui.alert('Gemini APIキーを保存しました。');
+    }
+  }
+}
+
 function setPrimaryColor() {
   const ui = SlidesApp.getUi();
   const props = PropertiesService.getScriptProperties();
@@ -141,22 +307,14 @@ function setPrimaryColor() {
   }
 }
 
-// フォント設定（プルダウン形式）
 function setFont() {
   const ui = SlidesApp.getUi();
   const props = PropertiesService.getScriptProperties();
   const currentValue = props.getProperty('fontFamily') || 'Arial';
   
-  const fonts = [
-    'Arial',
-    'Noto Sans JP',
-    'M PLUS 1p',
-    'Noto Serif JP'
-  ];
+  const fonts = ['Arial', 'Noto Sans JP', 'M PLUS 1p', 'Noto Serif JP'];
   
-  const fontList = fonts.map((font, index) => 
-    `${index + 1}. ${font}${font === currentValue ? ' (現在)' : ''}`
-  ).join('\n');
+  const fontList = fonts.map((font, index) => `${index + 1}. ${font}${font === currentValue ? ' (現在)' : ''}`).join('\n');
   
   const result = ui.prompt(
     'フォント設定',
@@ -181,17 +339,12 @@ function setFont() {
   }
 }
 
-// フッターテキスト設定
 function setFooterText() {
   const ui = SlidesApp.getUi();
   const props = PropertiesService.getScriptProperties();
   const currentValue = props.getProperty('footerText') || '未設定';
   
-  const result = ui.prompt(
-    'フッターテキスト設定',
-    `フッターに表示するテキストを入力してください\n現在値: ${currentValue}\n\n空欄でリセットされます。`,
-    ui.ButtonSet.OK_CANCEL
-  );
+  const result = ui.prompt('フッターテキスト設定', `フッターに表示するテキストを入力してください\n現在値: ${currentValue}\n\n空欄でリセットされます。`, ui.ButtonSet.OK_CANCEL);
   
   if (result.getSelectedButton() === ui.Button.OK) {
     const value = result.getResponseText().trim();
@@ -205,17 +358,12 @@ function setFooterText() {
   }
 }
 
-// ヘッダーロゴ設定
 function setHeaderLogo() {
   const ui = SlidesApp.getUi();
   const props = PropertiesService.getScriptProperties();
   const currentValue = props.getProperty('headerLogoUrl') || '未設定';
   
-  const result = ui.prompt(
-    'ヘッダーロゴ設定',
-    `ヘッダーロゴのURLを入力してください\n現在値: ${currentValue}\n\n空欄でリセットされます。`,
-    ui.ButtonSet.OK_CANCEL
-  );
+  const result = ui.prompt('ヘッダーロゴ設定', `ヘッダーロゴのURLを入力してください\n現在値: ${currentValue}\n\n空欄でリセットされます。`, ui.ButtonSet.OK_CANCEL);
   
   if (result.getSelectedButton() === ui.Button.OK) {
     const value = result.getResponseText().trim();
@@ -229,17 +377,12 @@ function setHeaderLogo() {
   }
 }
 
-// クロージングロゴ設定
 function setClosingLogo() {
   const ui = SlidesApp.getUi();
   const props = PropertiesService.getScriptProperties();
   const currentValue = props.getProperty('closingLogoUrl') || '未設定';
   
-  const result = ui.prompt(
-    'クロージングロゴ設定',
-    `クロージングページのロゴURLを入力してください\n現在値: ${currentValue}\n\n空欄でリセットされます。`,
-    ui.ButtonSet.OK_CANCEL
-  );
+  const result = ui.prompt('クロージングロゴ設定', `クロージングページのロゴURLを入力してください\n現在値: ${currentValue}\n\n空欄でリセットされます。`, ui.ButtonSet.OK_CANCEL);
   
   if (result.getSelectedButton() === ui.Button.OK) {
     const value = result.getResponseText().trim();
@@ -255,11 +398,11 @@ function setClosingLogo() {
 
 function resetSettings() {
   const ui = SlidesApp.getUi();
-  const result = ui.alert('設定のリセット', 'すべてのカスタム設定をリセットしますか？', ui.ButtonSet.YES_NO);
+  const result = ui.alert('設定のリセット', 'すべてのカスタム設定（APIキーを含む）をリセットしますか？', ui.ButtonSet.YES_NO);
   
   if (result === ui.Button.YES) {
     PropertiesService.getScriptProperties().deleteAllProperties();
-    ui.alert('すべての設定をリセットしました。\n\n• プライマリカラー: #4285F4\n• フォント: Arial\n• フッター/ロゴ: 未設定');
+    ui.alert('すべての設定をリセットしました。');
   }
 }
 
@@ -282,38 +425,297 @@ const slideGenerators = {
   closing: createClosingSlide,
   bulletCards: createBulletCardsSlide,
   faq: createFaqSlide,
+  compareCards: createCompareCardsSlide,
+  contentProgress: createContentProgressSlide,
+  timelineCards: createTimelineCardsSlide,
+  iconCards: createIconCardsSlide,
+  roadmapTimeline: createRoadmapTimelineSlide,
+  imageGallery: createImageGallerySlide
 };
 
 // --- 7. スライド生成関数群 ---
 function createTitleSlide(slide, data, layout) {
   slide.getBackground().setSolidFill(CONFIG.COLORS.background_white);
-  slide.getBackground().setTransparent();
-  //drawFauxGradientBackground(slide, layout);
-  drawSlideBackground(slide, 'title',layout);
-
+  drawSlideBackground(slide, 'title', layout);
   const logoRect = layout.getRect('titleSlide.logo');
   try {
     const logo = slide.insertImage(CONFIG.LOGOS.header);
     const aspect = logo.getHeight() / logo.getWidth();
     logo.setLeft(logoRect.left).setTop(logoRect.top).setWidth(logoRect.width).setHeight(logoRect.width * aspect);
   } catch (e) {
-    // 画像挿入に失敗した場合はスキップして他の要素を描画
-    Logger.log(`--- ERROR in createTitleSlide(slide, data, layout) ---`);
-    Logger.log(`Failed URL: ${CONFIG.LOGOS.header}`); // ★★★ 最も重要なログ ★★★
-    Logger.log('Failed URL: ${CONFIG.LOGOS.header}'); // ★★★ 最も重要なログ ★★★
-    Logger.log(`Error Message: ${e.message}`);
+    Logger.log(`タイトルロゴの挿入に失敗: ${e.message}`);
   }
-
   const titleRect = layout.getRect('titleSlide.title');
   const titleShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, titleRect.left, titleRect.top, titleRect.width, titleRect.height);
   setStyledText(titleShape, data.title, { size: CONFIG.FONTS.sizes.title, bold: true });
-
   const dateRect = layout.getRect('titleSlide.date');
   const dateShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, dateRect.left, dateRect.top, dateRect.width, dateRect.height);
   dateShape.getText().setText(data.date || '');
   applyTextStyle(dateShape.getText(), { size: CONFIG.FONTS.sizes.date });
-
   drawBottomBar(slide, layout);
+}
+
+function createSectionSlide(slide, data, layout, pageNum) {
+  slide.getBackground().setTransparent();
+  drawSlideBackground(slide, 'content',layout);
+
+  __SECTION_COUNTER++;
+  const parsedNum = (() => {
+    if (Number.isFinite(data.sectionNo)) return Number(data.sectionNo);
+    const m = String(data.title || '').match(/^\s*(\d+)[\.．]/);
+    return m ? Number(m[1]) : __SECTION_COUNTER;
+  })();
+  const num = String(parsedNum).padStart(2, '0');
+
+  const ghostRect = layout.getRect('sectionSlide.ghostNum');
+  const ghost = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, ghostRect.left, ghostRect.top, ghostRect.width, ghostRect.height);
+  ghost.getText().setText(num);
+  applyTextStyle(ghost.getText(), { size: CONFIG.FONTS.sizes.ghostNum, color: CONFIG.COLORS.ghost_gray, bold: true });
+  try { ghost.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE); } catch(e) {}
+
+  const titleRect = layout.getRect('sectionSlide.title');
+  const titleShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, titleRect.left, titleRect.top, titleRect.width, titleRect.height);
+  titleShape.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE);
+  setStyledText(titleShape, data.title, { size: CONFIG.FONTS.sizes.sectionTitle, bold: true, align: SlidesApp.ParagraphAlignment.CENTER });
+
+  addCucFooter(slide, layout, pageNum);
+}
+
+function createContentSlide(slide, data, layout, pageNum) {
+  slide.getBackground().setTransparent();
+  drawSlideBackground(slide, 'content',layout);
+  drawStandardTitleHeader(slide, layout, 'contentSlide', data.title);
+  const dy = 0; 
+
+  const isAgenda = isAgendaTitle(data.title || '');
+  let points = Array.isArray(data.points) ? data.points.slice(0) : [];
+  if (isAgenda && (!points || points.length === 0)) {
+    // slideDataをグローバル変数として持たないように修正
+    // points = buildAgendaFromSlideData();
+    if (points.length === 0) points = ['本日の目的', '進め方', '次のアクション'];
+  }
+
+  const hasImages = Array.isArray(data.images) && data.images.length > 0;
+  const isTwo = !!(data.twoColumn || data.columns);
+
+  if ((isTwo && (data.columns || points)) || (!isTwo && points && points.length > 0)) {
+    if (isTwo) {
+      let L = [], R = [];
+      if (Array.isArray(data.columns) && data.columns.length === 2) {
+        L = data.columns[0] || []; R = data.columns[1] || [];
+      } else {
+        const mid = Math.ceil(points.length / 2);
+        L = points.slice(0, mid); R = points.slice(mid);
+      }
+      const leftRect = offsetRect(layout.getRect('contentSlide.twoColLeft'), 0, dy);
+      const rightRect = offsetRect(layout.getRect('contentSlide.twoColRight'), 0, dy);
+      const leftShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, leftRect.left, leftRect.top, leftRect.width, leftRect.height);
+      const rightShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, rightRect.left, rightRect.top, rightRect.width, rightRect.height);
+      setBulletsWithInlineStyles(leftShape, L);
+      setBulletsWithInlineStyles(rightShape, R);
+    } else {
+      const bodyRect = offsetRect(layout.getRect('contentSlide.body'), 0, dy);
+      if (isAgenda) {
+        drawNumberedItems(slide, layout, bodyRect, points);
+      } else {
+        const bodyShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, bodyRect.left, bodyRect.top, bodyRect.width, bodyRect.height);
+        setBulletsWithInlineStyles(bodyShape, points);
+      }
+    }
+  }
+
+  if (hasImages) {
+    const area = offsetRect(layout.getRect('contentSlide.body'), 0, dy);
+    renderImagesInArea(slide, layout, area, normalizeImages(data.images));
+  }
+
+  drawBottomBarAndFooter(slide, layout, pageNum);
+}
+
+function createCompareSlide(slide, data, layout, pageNum) {
+  slide.getBackground().setTransparent();
+  drawSlideBackground(slide, 'content',layout);
+  drawStandardTitleHeader(slide, layout, 'compareSlide', data.title);
+  const dy = drawSubheadIfAny(slide, layout, 'compareSlide', data.subhead);
+
+  const leftBox = offsetRect(layout.getRect('compareSlide.leftBox'), 0, dy);
+  const rightBox = offsetRect(layout.getRect('compareSlide.rightBox'), 0, dy);
+  drawCompareBox(slide, leftBox, data.leftTitle || '選択肢A', data.leftItems || []);
+  drawCompareBox(slide, rightBox, data.rightTitle || '選択肢B', data.rightItems || []);
+
+  drawBottomBarAndFooter(slide, layout, pageNum);
+}
+
+function drawCompareBox(slide, rect, title, items) {
+  const box = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, rect.left, rect.top, rect.width, rect.height);
+  box.getFill().setSolidFill(CONFIG.COLORS.lane_title_bg);
+  box.getBorder().getLineFill().setSolidFill(CONFIG.COLORS.lane_border);
+  box.getBorder().setWeight(1);
+
+  const th = 0.75 * 40;
+  const titleBar = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, rect.left, rect.top, rect.width, th);
+  titleBar.getFill().setSolidFill(CONFIG.COLORS.primary_color);
+  titleBar.getBorder().setTransparent();
+  setStyledText(titleBar, title, { size: CONFIG.FONTS.sizes.laneTitle, bold: true, color: CONFIG.COLORS.background_white, align: SlidesApp.ParagraphAlignment.CENTER });
+
+  const pad = 0.75 * 12;
+  const textRect = { left: rect.left + pad, top: rect.top + th + pad, width: rect.width - pad * 2, height: rect.height - th - pad * 2 };
+  const body = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, textRect.left, textRect.top, textRect.width, textRect.height);
+  setBulletsWithInlineStyles(body, items);
+}
+
+function createProcessSlide(slide, data, layout, pageNum) {
+  slide.getBackground().setTransparent();
+  drawSlideBackground(slide, 'content',layout);
+  drawStandardTitleHeader(slide, layout, 'processSlide', data.title);
+  const dy = drawSubheadIfAny(slide, layout, 'processSlide', data.subhead);
+
+  const area = offsetRect(layout.getRect('processSlide.area'), 0, dy);
+  const steps = Array.isArray(data.steps) ? data.steps : [];
+  const n = Math.max(1, steps.length);
+
+  const topPadding = layout.pxToPt(30);
+  const bottomPadding = layout.pxToPt(10);
+  const drawableHeight = area.height - topPadding - bottomPadding;
+  const gapY = n > 1 ? drawableHeight / (n - 1) : drawableHeight;
+  const cx = area.left + layout.pxToPt(44);
+  const top0 = area.top + topPadding;
+
+  if (n > 1) {
+    const line = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, cx - layout.pxToPt(1), top0 + layout.pxToPt(6), layout.pxToPt(2), gapY * (n - 1));
+    line.getFill().setSolidFill(CONFIG.COLORS.faint_gray);
+    line.getBorder().setTransparent();
+  }
+
+  for (let i = 0; i < n; i++) {
+    const cy = top0 + gapY * i;
+    const sz = layout.pxToPt(28);
+    const numBox = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, cx - sz/2, cy - sz/2, sz, sz);
+    numBox.getFill().setSolidFill(CONFIG.COLORS.primary_color);
+    numBox.getBorder().setTransparent();
+    const num = numBox.getText(); num.setText(String(i + 1));
+    applyTextStyle(num, { size: 12, bold: true, color: CONFIG.COLORS.background_white, align: SlidesApp.ParagraphAlignment.CENTER });
+
+    let cleanText = String(steps[i] || '');
+    cleanText = cleanText.replace(/^\s*\d+[\.\s]*/, '');
+
+    const txt = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, cx + layout.pxToPt(28), cy - layout.pxToPt(16), area.width - layout.pxToPt(70), layout.pxToPt(32));
+    setStyledText(txt, cleanText, { size: CONFIG.FONTS.sizes.processStep });
+    try { txt.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE); } catch(e){}
+  }
+
+  drawBottomBarAndFooter(slide, layout, pageNum);
+}
+
+function createTimelineSlide(slide, data, layout, pageNum) {
+  slide.getBackground().setTransparent();
+  drawSlideBackground(slide, 'content',layout);
+  drawStandardTitleHeader(slide, layout, 'timelineSlide', data.title);
+  const dy = drawSubheadIfAny(slide, layout, 'timelineSlide', data.subhead);
+
+  const area = offsetRect(layout.getRect('timelineSlide.area'), 0, dy);
+  const milestones = Array.isArray(data.milestones) ? data.milestones : [];
+  if (milestones.length === 0) { drawBottomBarAndFooter(slide, layout, pageNum); return; }
+
+  const inner = layout.pxToPt(80);
+  const baseY = area.top + area.height * 0.50;
+  const leftX = area.left + inner;
+  const rightX = area.left + area.width - inner;
+
+  const line = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, leftX, baseY - layout.pxToPt(1), rightX - leftX, layout.pxToPt(2));
+  line.getFill().setSolidFill(CONFIG.COLORS.neutral_gray);
+  line.getBorder().setTransparent();
+
+  const dotR = layout.pxToPt(8);
+  const gap = milestones.length > 1 ? (rightX - leftX) / (milestones.length - 1) : 0;
+
+  milestones.forEach((m, i) => {
+    const x = leftX + gap * i - dotR / 2;
+    const dot = slide.insertShape(SlidesApp.ShapeType.ELLIPSE, x, baseY - dotR / 2, dotR, dotR);
+    
+    const progress = milestones.length > 1 ? i / (milestones.length - 1) : 0;
+    const brightness = 1.5 - (progress * 0.8);
+    dot.getFill().setSolidFill(adjustColorBrightness(CONFIG.COLORS.primary_color, brightness));
+    dot.getBorder().setTransparent();
+
+    const labelShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, x - layout.pxToPt(50) + dotR/2, baseY - layout.pxToPt(70), layout.pxToPt(100), layout.pxToPt(18));
+    setStyledText(labelShape, String(m.label || ''), { size: CONFIG.FONTS.sizes.small, bold: true, align: SlidesApp.ParagraphAlignment.CENTER });
+
+    const dateShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, x - layout.pxToPt(50) + dotR/2, baseY + layout.pxToPt(15), layout.pxToPt(100), layout.pxToPt(18));
+    setStyledText(dateShape, String(m.date || ''), { size: CONFIG.FONTS.sizes.small, color: CONFIG.COLORS.neutral_gray, align: SlidesApp.ParagraphAlignment.CENTER });
+  });
+
+  drawBottomBarAndFooter(slide, layout, pageNum);
+}
+
+function createDiagramSlide(slide, data, layout, pageNum) {
+  slide.getBackground().setTransparent();
+  drawSlideBackground(slide, 'content',layout);
+  drawStandardTitleHeader(slide, layout, 'diagramSlide', data.title);
+  const dy = drawSubheadIfAny(slide, layout, 'diagramSlide', data.subhead);
+
+  const lanes = Array.isArray(data.lanes) ? data.lanes : [];
+  const area = offsetRect(layout.getRect('diagramSlide.lanesArea'), 0, dy);
+
+  const px = (p)=> layout.pxToPt(p);
+  const laneGap = px(CONFIG.DIAGRAM.laneGap_px);
+  const lanePad = px(CONFIG.DIAGRAM.lanePad_px);
+  const laneTitleH = px(CONFIG.DIAGRAM.laneTitle_h_px);
+  const cardGap = px(CONFIG.DIAGRAM.cardGap_px);
+  const cardMinH = px(CONFIG.DIAGRAM.cardMin_h_px);
+  const cardMaxH = px(CONFIG.DIAGRAM.cardMax_h_px);
+  const arrowH = px(CONFIG.DIAGRAM.arrow_h_px);
+  const arrowGap = px(CONFIG.DIAGRAM.arrowGap_px);
+
+  const n = Math.max(1, lanes.length);
+  const laneW = (area.width - laneGap * (n - 1)) / n;
+  const cardBoxes = [];
+
+  for (let j = 0; j < n; j++) {
+    const lane = lanes[j] || { title: '', items: [] };
+    const left = area.left + j * (laneW + laneGap);
+    const top = area.top;
+
+    const lt = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, left, top, laneW, laneTitleH);
+    lt.getFill().setSolidFill(CONFIG.COLORS.lane_title_bg);
+    lt.getBorder().getLineFill().setSolidFill(CONFIG.COLORS.lane_border);
+    lt.getBorder().setWeight(1);
+    lt.getText().setText(lane.title || '');
+    applyTextStyle(lt.getText(), { size: CONFIG.FONTS.sizes.laneTitle, bold: true, align: SlidesApp.ParagraphAlignment.CENTER });
+
+    const items = Array.isArray(lane.items) ? lane.items : [];
+    const availH = area.height - laneTitleH - lanePad * 2;
+    const rows = Math.max(1, items.length);
+    const idealH = rows > 1 ? (availH - cardGap * (rows - 1)) / rows : availH;
+    const cardH = Math.max(cardMinH, Math.min(cardMaxH, idealH));
+    const totalH = cardH * rows + (rows > 1 ? cardGap * (rows - 1) : 0);
+    const firstTop = top + laneTitleH + lanePad + Math.max(0, (availH - totalH) / 2);
+
+    cardBoxes[j] = [];
+    for (let i = 0; i < rows; i++) {
+      const cardTop = firstTop + i * (cardH + cardGap);
+      const cardLeft = left + lanePad;
+      const cardWidth = laneW - lanePad * 2;
+
+      const card = slide.insertShape(SlidesApp.ShapeType.ROUND_RECTANGLE, cardLeft, cardTop, cardWidth, cardH);
+      card.getFill().setSolidFill(CONFIG.COLORS.card_bg);
+      card.getBorder().getLineFill().setSolidFill(CONFIG.COLORS.card_border);
+      card.getBorder().setWeight(1);
+      setStyledText(card, items[i] || '', { size: CONFIG.FONTS.sizes.body });
+      try { card.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE); } catch(e){}
+      cardBoxes[j][i] = { left: cardLeft, top: cardTop, width: cardWidth, height: cardH };
+    }
+  }
+
+  const maxRows = Math.max(0, ...cardBoxes.map(a => a.length));
+  for (let j = 0; j < n - 1; j++) {
+    const L = cardBoxes[j], R = cardBoxes[j + 1];
+    for (let i = 0; i < maxRows; i++) {
+      if (L && R && L[i] && R[i]) drawArrowBetweenRects(slide, L[i], R[i], arrowH, arrowGap);
+    }
+  }
+
+  drawBottomBarAndFooter(slide, layout, pageNum);
 }
 
 function createSectionSlide(slide, data, layout, pageNum) {
@@ -2036,50 +2438,6 @@ function drawSlideBackground(slide, slideType,layout) {
 }
 
 
-function doPost(e) {
-  // --- ▼▼▼ ログ収集の仕組みを追加 ▼▼▼ ---
-  const logs = [];
-  const originalLoggerLog = Logger.log; // 元のLogger.logを保存
-  
-  // Logger.logを乗っ取って、ログを配列にも保存するようにする
-  Logger.log = function(data) {
-    logs.push(formatLog(data));
-    originalLoggerLog.apply(Logger, arguments); // 元のログ機能も実行
-  };
-  // --- ▲▲▲ ---
-
-  try {
-    // メインのスライド生成関数を実行します
-    generatePresentation();
-
-    // --- ▼▼▼ 成功時の戻り値にログを追加 ▼▼▼ ---
-    return ContentService.createTextOutput(JSON.stringify({ 
-        "status": "success", 
-        "message": "スライドの生成が完了しました。",
-        "logs": logs // 収集したログを添付
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-    // --- ▲▲▲ ---
-
-  } catch (err) {
-    // --- ▼▼▼ エラー時の戻り値にもログを追加 ▼▼▼ ---
-    logs.push(`[ERROR] ${err.message}`);
-    logs.push(`[STACK] ${err.stack}`);
-    
-    return ContentService.createTextOutput(JSON.stringify({ 
-        "status": "error", 
-        "message": err.message,
-        "logs": logs // エラー発生までのログを添付
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-    // --- ▲▲▲ ---
-
-  } finally {
-    // --- ▼▼▼ Logger.logを元に戻す ▼▼▼ ---
-    Logger.log = originalLoggerLog;
-    // --- ▲▲▲ ---
-  }
-}
 
 function formatLog(data) {
   const timestamp = new Date().toLocaleTimeString('ja-JP');
@@ -2189,4 +2547,19 @@ function drawDiagonalGradient(slide, layout, startRGB, endRGB, steps, direction)
     shape.setTop(offsetY);
     shape.sendToBack();
   }
+}
+
+function formatLog(data) {
+  const timestamp = new Date().toLocaleTimeString('ja-JP');
+  let message;
+  try {
+    if (typeof data === 'object') {
+      message = JSON.stringify(data, null, 2);
+    } else {
+      message = String(data);
+    }
+  } catch (e) {
+    message = String(data);
+  }
+  return `[GAS ${timestamp}] ${message}`;
 }

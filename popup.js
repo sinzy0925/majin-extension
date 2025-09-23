@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const apiInputs = {
     deploymentId: document.getElementById('deployment-id'),
-    apiKey: document.getElementById('api-key'),
+    //apiKey: document.getElementById('api-key'),
     aiModel: document.getElementById('ai-model'),
     scriptId: document.getElementById('script-id'),
   };
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const allSettings = getSettingsFromForm();
     
     // 必須項目チェック
-    if (!allSettings.scriptId || !allSettings.deploymentId || !allSettings.apiKey || !allSettings.aiModel) {
+    if (!allSettings.scriptId || !allSettings.deploymentId || !allSettings.aiModel) {// || !allSettings.apiKey) {
       statusMessage.textContent = "API・連携設定の必須項目を入力してください。";
       if (!collapsible.classList.contains('active')) {
         collapsible.click();
