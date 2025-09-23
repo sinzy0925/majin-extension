@@ -3,6 +3,7 @@ const str_LOGOS_header= 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/
 const str_LOGOS_closing= 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png';
 const str_primary_color= '#4285F4';
 const str_text_primary= '#333333';//ほぼ黒のグレー
+const str_font_family= 'Arial';// 'Roboto''Arial'デフォルト、プロパティから動的に変更可能
 
 const str_bg_gradient_start_color= '#FFFFFF';
 const str_bg_gradient_end_color= '#00FFFF';

@@ -119,7 +119,7 @@ bottomBar: { left: 0, top: 534, width: 960, height: 6 }
 },
 
 FONTS: {
-family: 'Roboto', // 'Arial'デフォルト、プロパティから動的に変更可能
+family: str_font_family, // 'Arial'デフォルト
 sizes: {
 title: 32, 
 sectionTitle: 30, 

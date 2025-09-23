@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closingBg: document.getElementById('closing-bg'),
     primaryColor: document.getElementById('primary-color'),
     fontColor: document.getElementById('font-color'),
+    fontFamily: document.getElementById('font-family'),
     bgStartColor: document.getElementById('bg-gradient-start-color'),
     bgEndColor: document.getElementById('bg-gradient-end-color'),
   };
@@ -66,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
   collapsible4.addEventListener('click', () => {
     const isExpanded = collapsible4.classList.toggle('active');
     collapsible4Content.style.display = isExpanded ? 'block' : 'none';
-    collapsible4.textContent = isExpanded ? '▲ カラー設定' : '▼ カラー設定';
+    collapsible4.textContent = isExpanded ? '▲ フォント・カラー設定' : '▼ フォント・カラー設定';
   });
 
   function aaaashowFeedback(message, isError = false) {
@@ -104,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
           closingLogo: (text.match(/const str_LOGOS_closing= '([^']+)'/) || [])[1] || '',
           primaryColor: (text.match(/const str_primary_color= '([^']+)';/) || [])[1] || '#4285F4',
           fontColor: (text.match(/const str_text_primary= '([^']+)';/) || [])[1] || '#333333',
+          fontFamily: (text.match(/const str_font_family= '([^']+)';/) || [])[1] || 'Arial',
           bgStartColor: (text.match(/const str_bg_gradient_start_color= '([^']+)';/) || [])[1] || '#4285F4',
           bgEndColor: (text.match(/const str_bg_gradient_end_color= '([^']+)';/) || [])[1] || '#4285F4',
           titleBg: (text.match(/const str_title_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',

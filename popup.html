@@ -7,7 +7,7 @@
     h3 { text-align: center; margin-bottom: 10px; }
     h4 { text-align: left; font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
     
-    textarea, .settings-item input {
+    textarea, .settings-item input select{
       width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;
     }
     textarea { height: 150px; resize: vertical; }
@@ -134,12 +134,25 @@
     <div class="collapsible4-content">
 
       <div class="settings">
-        <label for="primary-color">ラインカラー:</label>
-        <input type="color" id="primary-color" value="#4285F4">
+        <label for="font-family">フォント:</label>
+        <select id="font-family">
+          <option value="Arial">Arial (システムフォント)</option>
+          <option value="Noto Sans JP">Noto Sans JP (ゴシック体)</option>
+          <option value="M PLUS 1p">M PLUS 1p (ゴシック体)</option>
+          <option value="Noto Serif JP">Noto Serif JP (明朝体)</option>
+          <option value="Kosugi Maru">Kosugi Maru (丸ゴシック)</option>
+          <option value="Roboto">Roboto (欧文向け)</option>
+        </select>
       </div>
+
+
       <div class="settings">
         <label for="font-color">フォントカラー:</label>
         <input type="color" id="font-color" value="#4285F4">
+      </div>
+      <div class="settings">
+        <label for="primary-color">ラインカラー:</label>
+        <input type="color" id="primary-color" value="#4285F4">
       </div>
       <div class="settings">
         <label for="bg-gradient-start-color">背景グラデーション[start]:</label>
