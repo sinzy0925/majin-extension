@@ -73,6 +73,9 @@
   <div class="settings-group1">
     <h4 class="collapsible1">▼ API・GAS設定 (必須項目)</h4>
     <div class="collapsible1-content">
+      <div style="background-color: #fff8e1; border: 1px solid #ffecb3; border-radius: 4px; padding: 8px; margin-bottom: 10px; font-size: 12px; color: #616161;">
+        <strong>【重要】</strong> ここには、この拡張機能専用の<b>空のGoogle Apps Scriptプロジェクト</b>のIDを指定してください。既存のスクリプトが入っているIDを指定すると、<b>警告なしに内容がすべて上書きされ、復元できません。</b>
+      </div>
       <div class="settings-item vertical-item">
         <label for="script-id">Script ID</label>
         <input type="text" id="script-id">
@@ -84,6 +87,10 @@
       <div class="settings-item vertical-item">
         <label for="ai-model">AI Model</label>
         <input type="text" id="ai-model">
+      </div>
+      <div class="settings-item" style="margin-top: 15px;">
+        <input type="checkbox" id="overwrite-confirm" style="width: auto; margin-right: 8px;">
+        <label for="overwrite-confirm" style="flex: 1; font-size: 12px; user-select: none;">上記のリスクを理解し、プロジェクトの上書きを許可します。</label>
       </div>
     </div>
   </div>

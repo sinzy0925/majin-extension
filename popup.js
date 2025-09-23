@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aiModel: document.getElementById('ai-model'),
     scriptId: document.getElementById('script-id'),
   };
+  const overwriteConfirm = document.getElementById('overwrite-confirm'); // ★ チェックボックスを取得
 
   const gradientDirectionRadios = document.querySelectorAll('input[name="gradient-direction"]');
 
@@ -173,6 +174,15 @@ document.addEventListener('DOMContentLoaded', () => {
       statusMessage.textContent = "API・連携設定の必須項目を入力してください。";
       if (!collapsible.classList.contains('active')) {
         collapsible.click();
+      }
+      return;
+    }
+    
+    if (!overwriteConfirm.checked) {
+      statusMessage.textContent = "プロジェクトの上書き許可にチェックを入れてください。";
+      // API設定セクションが開いていなければ開く
+      if (!collapsible1.classList.contains('active')) {
+        collapsible1.click();
       }
       return;
     }
