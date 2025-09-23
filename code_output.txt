@@ -1,6 +1,4 @@
-popup.html でフォントを変更できるようにした。
-変更の際に、予めこちらで設定したフォントに切り替えられるようにしたい
-どうしたらよいか提案して
+以下のアプリを詳細に理解して
 
 
 ---
@@ -2476,7 +2474,7 @@ function createFile0Source(baseSource, settings) {
         if (settings.closingLogo) { source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
         if (settings.primaryColor) { source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
         if (settings.fontColor) { source = source.replace(/const str_text_primary= '.*';/, `const str_text_primary= '${settings.fontColor}';`); }
-        if (settings.fontFamily) { source = source.replace(/const = str_font_family= '.*';/, `const str_font_family= '${settings.fontFamily}';`); }
+        if (settings.fontFamily) { source = source.replace(/const str_font_family= '.*';/, `const str_font_family= '${settings.fontFamily}';`); }
         if (settings.bgStartColor) { source = source.replace(/const str_bg_gradient_start_color= '.*';/, `const str_bg_gradient_start_color= '${settings.bgStartColor}';`); }
         if (settings.bgEndColor) { source = source.replace(/const str_bg_gradient_end_color= '.*';/, `const str_bg_gradient_end_color= '${settings.bgEndColor}';`); }
         if (settings.gradientDirection) { source = source.replace(/const str_GRADIENT_DIRECTION= '.*';/, `const str_GRADIENT_DIRECTION= '${settings.gradientDirection}';`); }
@@ -2775,7 +2773,7 @@ async function executeWebApp(url) {
     h3 { text-align: center; margin-bottom: 10px; }
     h4 { text-align: left; font-weight: normal; color: #555; margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 5px;}
     
-    textarea, .settings-item input {
+    textarea, .settings-item input select{
       width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 10px;
     }
     textarea { height: 150px; resize: vertical; }
@@ -2903,8 +2901,17 @@ async function executeWebApp(url) {
 
       <div class="settings">
         <label for="font-family">フォント:</label>
-        <input type="text" id="font-family" value="Arial">
+        <select id="font-family">
+          <option value="Arial">Arial (システムフォント)</option>
+          <option value="Noto Sans JP">Noto Sans JP (ゴシック体)</option>
+          <option value="M PLUS 1p">M PLUS 1p (ゴシック体)</option>
+          <option value="Noto Serif JP">Noto Serif JP (明朝体)</option>
+          <option value="Kosugi Maru">Kosugi Maru (丸ゴシック)</option>
+          <option value="Roboto">Roboto (欧文向け)</option>
+        </select>
       </div>
+
+
       <div class="settings">
         <label for="font-color">フォントカラー:</label>
         <input type="color" id="font-color" value="#4285F4">

@@ -220,7 +220,7 @@ function createProjectSource(file0,file1, file2, file3) {
     "dependencies": {},
     "exceptionLogging": "STACKDRIVER",
     "runtimeVersion": "V8",
-    "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" },
+    "webapp": { "executeAs": "USER_DEPLOYING", "access": "MYSELF" },
     "oauthScopes": [
       "https://www.googleapis.com/auth/presentations",
       "https://www.googleapis.com/auth/drive.file"
@@ -275,8 +275,16 @@ async function updateDeployment(scriptId, deploymentId, token, versionNumber) {
   return await response.json();
 }
 
+//const response = await fetch(url, { method: 'POST', cache: 'no-cache' });
 async function executeWebApp(url) {
-  const response = await fetch(url, { method: 'POST', cache: 'no-cache' });
+  const token = await getAuthToken();
+  const response = await fetch(url, {
+    method: 'POST',
+    cache: 'no-cache',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
   if (!response.ok) { const errorText = await response.text(); throw new Error(`ウェブアプリ実行エラー: ステータス ${response.status}`); }
   const text = await response.text();
   try {
