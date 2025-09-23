@@ -15,7 +15,9 @@
     "storage" 
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://accounts.google.com/",
+    "https://script.googleapis.com/",
+    "https://script.google.com/"
   ],
   "oauth2": {
     "client_id": "77855084094-c3jal48g1hd0emb487ggobtakrpsk6a2.apps.googleusercontent.com",
@@ -27,18 +29,7 @@
       "https://www.googleapis.com/auth/drive.file"
     ]
   },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "0.gs",
-        "1.gs",
-        "3.gs",
-        "system_prompt.txt"
-      ],
-      "matches": [ "<all_urls>" ]
-    }
-  ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://generativelanguage.googleapis.com/ https://script.googleapis.com/ https://script.google.com/ https://script.googleusercontent.com/;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://accounts.google.com/ https://script.googleapis.com/ https://script.google.com/ https://script.googleusercontent.com/;"
   }
 }

@@ -192,7 +192,7 @@ function getSlideDataFromAI_gas(userPrompt, aiModel) {
 /**
  * 【新設】AIの応答文字列からslideDataオブジェクトを安全に抽出・パースする関数
  */
-function parseSlideData(slideDataString) {
+function aaaparseSlideData(slideDataString) {
   Logger.log("slideDataのパースを開始します...");
   let rawJson = slideDataString.trim();
   rawJson = rawJson.replace(/^```javascript\s*|\s*```\s*$/g, '');
@@ -213,6 +213,29 @@ function parseSlideData(slideDataString) {
     Logger.log(`slideDataのパースに失敗しました: ${e.message}`);
     Logger.log(`問題の文字列: ${rawJson}`);
     throw new Error("AIが生成したslideDataの構文解析に失敗しました。");
+  }
+}
+function parseSlideData(slideDataString) {
+  Logger.log("slideDataのパースを開始します...");
+  let rawJson = slideDataString.trim();
+  // ```javascript ``` などのコードフェンスや変数宣言を除去
+  rawJson = rawJson.replace(/^```(javascript|json)?\s*|\s*```\s*$/g, '');
+  const startIndex = rawJson.indexOf('[');
+  const endIndex = rawJson.lastIndexOf(']');
+  if (startIndex === -1 || endIndex === -1) {
+    throw new Error("AIの応答にslideDataの配列が見つかりません。");
+  }
+  rawJson = rawJson.substring(startIndex, endIndex + 1);
+
+  try {
+    // 【重要】new Function() の代わりに JSON.parse() を使用
+    const slideData = JSON.parse(rawJson);
+    Logger.log(`パース成功。${slideData.length}枚のスライドデータを取得しました。`);
+    return slideData;
+  } catch (e) {
+    Logger.log(`slideDataのJSONパースに失敗しました: ${e.message}`);
+    Logger.log(`問題の文字列: ${rawJson}`);
+    throw new Error("AIが生成したslideDataのJSON形式が不正です。");
   }
 }
 

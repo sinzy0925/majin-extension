@@ -203,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (port) port.disconnect();
     port = chrome.runtime.connect({ name: "generate-channel" });
 
+    /*
     port.onMessage.addListener((msg) => {
         statusMessage.innerHTML = msg.message;
         if (msg.status === 'success' || msg.status === 'error') {
@@ -210,6 +211,25 @@ document.addEventListener('DOMContentLoaded', () => {
             regenerateBtn.disabled = false;
             if (port) port.disconnect();
         }
+    });
+    */
+
+    port.onMessage.addListener((msg) => {
+      // 安全な表示方法に変更
+      statusMessage.textContent = ''; // 表示エリアをクリア
+      const messageLines = msg.message.split('<br>'); // <br>で分割
+      messageLines.forEach((line, index) => {
+          if (index > 0) {
+              statusMessage.appendChild(document.createElement('br'));
+          }
+          statusMessage.appendChild(document.createTextNode(line));
+      });
+  
+      if (msg.status === 'success' || msg.status === 'error') {
+          generateBtn.disabled = false;
+          regenerateBtn.disabled = false;
+          if (port) port.disconnect();
+      }
     });
 
     port.onDisconnect.addListener(() => {
