@@ -85,27 +85,7 @@ function escapeTemplateLiteral(str) {
   return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
 }
 
-// --- 機能: デザイン設定で0.gsの内容を書き換える ---
-function test_createFile0Source(baseSource, settings) {
-    let source = baseSource;
-    if (settings) {
-        const escapedText = JSON.stringify(settings.footerText || '');
-        source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = ${escapedText};`);
-        if (isValidHttpUrl(settings.headerLogo)) { source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= '${settings.headerLogo}'`); }
-        if (isValidHttpUrl(settings.closingLogo)) { source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= '${settings.closingLogo}'`); }
-        if (isValidColorCode(settings.primaryColor)) { source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= '${settings.primaryColor}';`); }
-        if (isValidColorCode(settings.fontColor)) { source = source.replace(/const str_text_primary= '.*';/, `const str_text_primary= '${settings.fontColor}';`); }
-        if (isValidColorCode(settings.bgStartColor)) { source = source.replace(/const str_bg_gradient_start_color= '.*';/, `const str_bg_gradient_start_color= '${settings.bgStartColor}';`); }
-        if (isValidColorCode(settings.bgEndColor)) { source = source.replace(/const str_bg_gradient_end_color= '.*';/, `const str_bg_gradient_end_color= '${settings.bgEndColor}';`); }
-        if (settings.fontFamily) { source = source.replace(/const str_font_family= '.*';/, `const str_font_family= '${settings.fontFamily}';`); }
-        if (settings.gradientDirection) { source = source.replace(/const str_GRADIENT_DIRECTION= '.*';/, `const str_GRADIENT_DIRECTION= '${settings.gradientDirection}';`); }
-        const formatUrl = (url) => isValidHttpUrl(url) ? `'${url}'` : 'null';
-        if (settings.titleBg !== undefined) { source = source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${formatUrl(settings.titleBg)};`); }
-        if (settings.contentBg !== undefined) { source = source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${formatUrl(settings.contentBg)};`); }
-        if (settings.closingBg !== undefined) { source = source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`); }
-    }
-    return source;
-}
+
 
 function createFile0Source(baseSource, settings) {
   let source = baseSource;
