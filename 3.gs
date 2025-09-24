@@ -63,8 +63,21 @@ function doPost(e) {
   } catch (err) {
     logs.push(`[CRITICAL ERROR] ${err.message}`);
     logs.push(`[STACK] ${err.stack}`);
-    let userMessage = 'GAS側で不明なエラーが発生しました。';
-    // ... (エラーメッセージ分岐)
+    let userMessage;
+    
+     // エラーメッセージの内容を判定し、ユーザーに返すメッセージを振り分ける
+    if (err.message.includes('検証エラー:')) {
+      // validateSlideDataで発生したエラーの場合、その内容をそのままユーザーに伝える
+      userMessage = err.message;
+    } else if (err.message.includes('GEMINI_API_KEY')) {
+      // APIキー設定に関するエラーの場合
+      userMessage = 'APIキー設定に問題があります。GASプロジェクトのメニューから正しいキーを設定してください。';
+    } else {
+      // その他の予期せぬエラーの場合
+      userMessage = 'GAS側で不明なエラーが発生しました。';
+    }
+
+
     return ContentService.createTextOutput(JSON.stringify({ 
         "status": "error", "message": userMessage, "logs": logs 
       }))
@@ -80,7 +93,7 @@ function doPost(e) {
  * @returns {boolean} 検証に成功した場合はtrue
  * @throws {Error} 検証に失敗した場合
  */
-function validateSlideData(slideData) {
+function test_validateSlideData(slideData) {
   Logger.log("slideDataの検証を開始します...");
 
   if (!Array.isArray(slideData)) {
@@ -125,6 +138,116 @@ function validateSlideData(slideData) {
   }
 
   Logger.log("slideDataの検証に成功しました。");
+  return true;
+}
+
+/**
+ * 【強化版】AIが生成したslideDataオブジェクトの構造と内容を検証する関数
+ * @param {Array<Object>} slideData パースされたslideData
+ * @returns {boolean} 検証に成功した場合はtrue
+ * @throws {Error} 検証に失敗した場合
+ */
+function validateSlideData(slideData) {
+  Logger.log("slideDataの厳格な検証を開始します...");
+
+  if (!Array.isArray(slideData)) {
+    throw new Error("検証エラー: slideDataが配列ではありません。");
+  }
+
+  if (slideData.length > 50) { //50 // スライド枚数の上限チェック
+    throw new Error(`検証エラー: スライド枚数が上限(50枚)を超えています: ${slideData.length}枚`);
+  }
+
+  // --- ★対策1: プロパティのAllowlistを定義 ---
+  // 各スライドタイプで許可されるプロパティのリスト。これ以外はエラーとする。
+  const allowedProperties = {
+    title:         ['type', 'title', 'date', 'notes'],
+    section:       ['type', 'title', 'sectionNo', 'notes'],
+    closing:       ['type', 'notes'],
+    content:       ['type', 'title', 'subhead', 'points', 'twoColumn', 'columns', 'images', 'notes'],
+    compare:       ['type', 'title', 'subhead', 'leftTitle', 'rightTitle', 'leftItems', 'rightItems', 'images', 'notes'],
+    process:       ['type', 'title', 'subhead', 'steps', 'images', 'notes'],
+    timeline:      ['type', 'title', 'subhead', 'milestones', 'images', 'notes'],
+    diagram:       ['type', 'title', 'subhead', 'lanes', 'images', 'notes'],
+    cards:         ['type', 'title', 'subhead', 'columns', 'items', 'images', 'notes'],
+    headerCards:   ['type', 'title', 'subhead', 'columns', 'items', 'images', 'notes'],
+    table:         ['type', 'title', 'subhead', 'headers', 'rows', 'notes'],
+    progress:      ['type', 'title', 'subhead', 'items', 'notes'],
+    quote:         ['type', 'title', 'subhead', 'text', 'author', 'notes'],
+    kpi:           ['type', 'title', 'subhead', 'columns', 'items', 'notes'],
+    bulletCards:   ['type', 'title', 'subhead', 'items', 'notes'],
+    faq:           ['type', 'title', 'subhead', 'items', 'notes'],
+    statsCompare:  ['type', 'title', 'subhead', 'leftTitle', 'rightTitle', 'stats', 'notes'],
+    // 拡張されたスライドタイプもここに追加する
+    compareCards:      ['type', 'title', 'subhead', 'leftTitle', 'rightTitle', 'leftCards', 'rightCards', 'notes'],
+    contentProgress:   ['type', 'title', 'subhead', 'points', 'cards', 'progress', 'notes'],
+    timelineCards:     ['type', 'title', 'subhead', 'timeline', 'cards', 'notes'],
+    iconCards:         ['type', 'title', 'subhead', 'items', 'notes'],
+    roadmapTimeline:   ['type', 'title', 'subhead', 'phases', 'notes'],
+    imageGallery:      ['type', 'title', 'subhead', 'layout', 'images', 'notes']
+  };
+  const slideGeneratorsKeys = Object.keys(slideGenerators);
+
+
+  for (let i = 0; i < slideData.length; i++) {
+    const slide = slideData[i];
+    const slideNum = i + 1;
+    if (typeof slide !== 'object' || slide === null) {
+      throw new Error(`検証エラー: スライド ${slideNum} がオブジェクトではありません。`);
+    }
+
+    // typeプロパティの検証
+    if (!slide.type || typeof slide.type !== 'string' || !slideGeneratorsKeys.includes(slide.type)) {
+      throw new Error(`検証エラー: スライド ${slideNum} のtypeプロパティが不正です: ${slide.type}`);
+    }
+    
+    // --- ★対策1: 許可されていないプロパティがないかチェック ---
+    const allowed = allowedProperties[slide.type];
+    if (allowed) {
+      for (const key in slide) {
+        if (!allowed.includes(key)) {
+          throw new Error(`検証エラー: スライド ${slideNum} (${slide.type}) に許可されていないプロパティ '${key}' が含まれています。`);
+        }
+      }
+    }
+    
+    // --- ★対策2: 各種配列の要素数上限チェック ---
+    const checkArrayLimit = (arr, limit, name) => {
+        if (Array.isArray(arr) && arr.length > limit) {
+            throw new Error(`検証エラー: スライド ${slideNum} (${slide.type}) の ${name} の要素数が上限(${limit}件)を超えています。`);
+        }
+    };
+    checkArrayLimit(slide.points, 50, 'points');//50
+    checkArrayLimit(slide.columns, 2, 'columns');//2
+    checkArrayLimit(slide.items, 50, 'items');//50
+    checkArrayLimit(slide.steps, 50, 'steps');//50
+    checkArrayLimit(slide.milestones, 50, 'milestones');//50
+    checkArrayLimit(slide.lanes, 10, 'lanes');//10
+    checkArrayLimit(slide.headers, 20, 'headers');//20
+    checkArrayLimit(slide.rows, 100, 'rows');//100
+    checkArrayLimit(slide.images, 10, 'images');//10
+
+    // 全ての文字列プロパティに対して安全性をチェックする再帰関数
+    const validateStrings = (obj) => {
+      for (const key in obj) {
+        if (typeof obj[key] === 'string') {
+          // 危険な文字が含まれていないかチェック
+          if (/[<>]/.test(obj[key])) {
+            throw new Error(`検証エラー: スライド ${slideNum} のプロパティ '${key}' に不正な文字(<, >)が含まれています。`);
+          }
+          // 長すぎる文字列でないかチェック
+          if (obj[key].length > 2000) {
+            throw new Error(`検証エラー: スライド ${slideNum} のプロパティ '${key}' が長すぎます(上限2000文字)。`);
+          }
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+          validateStrings(obj[key]); // 再帰的にオブジェクトや配列の中身もチェック
+        }
+      }
+    };
+    validateStrings(slide);
+  }
+
+  Logger.log("slideDataの厳格な検証に成功しました。");
   return true;
 }
 

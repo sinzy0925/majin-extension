@@ -86,7 +86,7 @@ function escapeTemplateLiteral(str) {
 }
 
 // --- 機能: デザイン設定で0.gsの内容を書き換える ---
-function createFile0Source(baseSource, settings) {
+function test_createFile0Source(baseSource, settings) {
     let source = baseSource;
     if (settings) {
         const escapedText = JSON.stringify(settings.footerText || '');
@@ -105,6 +105,42 @@ function createFile0Source(baseSource, settings) {
         if (settings.closingBg !== undefined) { source = source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${formatUrl(settings.closingBg)};`); }
     }
     return source;
+}
+
+function createFile0Source(baseSource, settings) {
+  let source = baseSource;
+  if (settings) {
+      // ★修正点: JSON.stringifyを使用して安全に文字列リテラルを生成する
+      const footerText = JSON.stringify(settings.footerText || '');
+      const headerLogo = JSON.stringify(isValidHttpUrl(settings.headerLogo) ? settings.headerLogo : '');
+      const closingLogo = JSON.stringify(isValidHttpUrl(settings.closingLogo) ? settings.closingLogo : '');
+      const primaryColor = JSON.stringify(isValidColorCode(settings.primaryColor) ? settings.primaryColor : '#4285F4');
+      const fontColor = JSON.stringify(isValidColorCode(settings.fontColor) ? settings.fontColor : '#333333');
+      const bgStartColor = JSON.stringify(isValidColorCode(settings.bgStartColor) ? settings.bgStartColor : '#FFFFFF');
+      const bgEndColor = JSON.stringify(isValidColorCode(settings.bgEndColor) ? settings.bgEndColor : '#00FFFF');
+      const fontFamily = JSON.stringify(settings.fontFamily || 'Arial');
+      const gradientDirection = JSON.stringify(settings.gradientDirection || 'vertical');
+      
+      // isValidHttpUrlの結果に基づいて 'null' (文字列ではなく予約語) またはURL文字列を生成する
+      const titleBg = isValidHttpUrl(settings.titleBg) ? JSON.stringify(settings.titleBg) : 'null';
+      const contentBg = isValidHttpUrl(settings.contentBg) ? JSON.stringify(settings.contentBg) : 'null';
+      const closingBg = isValidHttpUrl(settings.closingBg) ? JSON.stringify(settings.closingBg) : 'null';
+
+      // ★修正点: 置換処理を修正後の変数で行う
+      source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = ${footerText};`);
+      source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= ${headerLogo}`);
+      source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= ${closingLogo}`);
+      source = source.replace(/const str_primary_color= '.*';/, `const str_primary_color= ${primaryColor};`);
+      source = source.replace(/const str_text_primary= '.*';/, `const str_text_primary= ${fontColor};`);
+      source = source.replace(/const str_bg_gradient_start_color= '.*';/, `const str_bg_gradient_start_color= ${bgStartColor};`);
+      source = source.replace(/const str_bg_gradient_end_color= '.*';/, `const str_bg_gradient_end_color= ${bgEndColor};`);
+      source = source.replace(/const str_font_family= '.*';/, `const str_font_family= ${fontFamily};`);
+      source = source.replace(/const str_GRADIENT_DIRECTION= '.*';/, `const str_GRADIENT_DIRECTION= ${gradientDirection};`);
+      source = source.replace(/const str_title_background_image_url= .*?;/, `const str_title_background_image_url= ${titleBg};`);
+      source = source.replace(/const str_content_background_image_url= .*?;/, `const str_content_background_image_url= ${contentBg};`);
+      source = source.replace(/const str_closing_background_image_url= .*?;/, `const str_closing_background_image_url= ${closingBg};`);
+  }
+  return source;
 }
 
 // --- メインの処理フロー関数 ---
