@@ -1,12 +1,18 @@
 // popup.js
 document.addEventListener('DOMContentLoaded', () => {
   // --- DOM要素の取得 ---
+  // ユーザーがスライドの内容を入力するテキストエリア
   const userPrompt = document.getElementById('user-prompt');
+  // 処理の進捗や結果を表示するメッセージエリア
   const statusMessage = document.getElementById('status-message');
+  // 「全自動でスライドを生成」ボタン
   const generateBtn = document.getElementById('generate-button');
+  // 「デザインを反映して再生成」ボタン
   const regenerateBtn = document.getElementById('regenerate-button');
-  const revokeTokenBtn = document.getElementById('revoke-token-button'); // ★ ボタンを取得
+  // 「GAS認証をリセット」ボタン
+  const revokeTokenBtn = document.getElementById('revoke-token-button');
   
+  // デザイン関連の設定入力フィールドをまとめて管理するオブジェクト
   const designInputs = {
     footerText: document.getElementById('footer-text'),
     headerLogo: document.getElementById('header-logo'),
@@ -21,20 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
     bgEndColor: document.getElementById('bg-gradient-end-color'),
   };
 
+  // API・GAS連携関連の設定入力フィールドをまとめて管理するオブジェクト
   const apiInputs = {
     deploymentId: document.getElementById('deployment-id'),
-    //apiKey: document.getElementById('api-key'),
     aiModel: document.getElementById('ai-model'),
     scriptId: document.getElementById('script-id'),
   };
-  const overwriteConfirm = document.getElementById('overwrite-confirm'); // ★ チェックボックスを取得
+  // プロジェクト上書き許可のチェックボックス
+  const overwriteConfirm = document.getElementById('overwrite-confirm');
+  // 上書き許可チェックボックスの右側にある説明文のspan要素
+  const overwriteConfirmLabel = document.getElementById('overwrite-confirm-label');
 
+  // グラデーションの向きを選択するラジオボタン群
   const gradientDirectionRadios = document.querySelectorAll('input[name="gradient-direction"]');
 
+  // 設定の保存ボタンとリセットボタン
   const saveBtn = document.getElementById('save-settings-button');
   const resetBtn = document.getElementById('reset-settings-button');
+  // 設定保存時にフィードバックを表示するエリア
   const feedbackMessage = document.getElementById('feedback-message');
   
+  // 各設定セクションの折りたたみメニューのヘッダー部分
   const collapsible1 = document.querySelector('.collapsible1');
   const collapsible1Content = document.querySelector('.collapsible1-content');
   const collapsible2 = document.querySelector('.collapsible2');
@@ -46,7 +59,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const collapsible5 = document.querySelector('.collapsible5');
   const collapsible5Content = document.querySelector('.collapsible5-content');
 
+  // Chromeストレージに設定を保存する際のキー
   const SETTINGS_KEY = 'userAppSettings';
+  // background.jsとの通信用ポート
   let port = null;
 
   // --- 機能: 折りたたみメニューの制御 ---
@@ -80,21 +95,12 @@ document.addEventListener('DOMContentLoaded', () => {
     collapsible5.textContent = isExpanded ? '▲ GAS認証をリセット' : '▼ GAS認証をリセット';
   });
 
-
   // --- 機能: フィードバックメッセージを表示 ---
   function showFeedback(message, isError = false) {
-    // 表示先を statusMessage に変更
-    statusMessage.textContent = message;
-    
-    // メッセージの種類に応じてスタイルを一時的に変更
-    statusMessage.style.color = isError ? '#D93025' : '#0F9D58';
-    statusMessage.style.backgroundColor = isError ? '#FCE8E6' : '#E6F4EA'; // 赤系 or 緑系の背景色
-  
-    // 4秒後にメッセージとスタイルを元に戻す
+    feedbackMessage.textContent = message;
+    feedbackMessage.style.color = isError ? '#D93025' : '#0F9D58';
     setTimeout(() => {
-      statusMessage.textContent = '';
-      statusMessage.style.color = '#333'; // 元の文字色
-      statusMessage.style.backgroundColor = '#e8f0fe'; // 元の背景色
+      feedbackMessage.textContent = '';
     }, 4000);
   }
 
@@ -111,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
           primaryColor: (text.match(/const str_primary_color= '([^']+)';/) || [])[1] || '#4285F4',
           fontColor: (text.match(/const str_text_primary= '([^']+)';/) || [])[1] || '#333333',
           fontFamily: (text.match(/const str_font_family= '([^']+)';/) || [])[1] || 'Arial',
-          bgStartColor: (text.match(/const str_bg_gradient_start_color= '([^']+)';/) || [])[1] || '#4285F4',
-          bgEndColor: (text.match(/const str_bg_gradient_end_color= '([^']+)';/) || [])[1] || '#4285F4',
+          bgStartColor: (text.match(/const str_bg_gradient_start_color= '([^']+)';/) || [])[1] || '#FFFFFF',
+          bgEndColor: (text.match(/const str_bg_gradient_end_color= '([^']+)';/) || [])[1] || '#00FFFF',
           titleBg: (text.match(/const str_title_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',
           contentBg: (text.match(/const str_content_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || '',
           closingBg: (text.match(/const str_closing_background_image_url= (.*?);/) || [])[1]?.replace(/["']/g, '').replace('null', '') || ''
@@ -126,8 +132,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- 機能: 設定オブジェクトをフォームに反映 ---
   function applySettingsToForm(settings) {
     if (!settings) return;
-    Object.keys(designInputs).forEach(key => { designInputs[key].value = settings[key] || ''; });
-    Object.keys(apiInputs).forEach(key => { apiInputs[key].value = settings[key] || ''; });
+    Object.keys(designInputs).forEach(key => { if(designInputs[key]) designInputs[key].value = settings[key] || ''; });
+    Object.keys(apiInputs).forEach(key => { if(apiInputs[key]) apiInputs[key].value = settings[key] || ''; });
+    // ラジオボタンの状態も復元
+    const savedDirection = settings.gradientDirection || 'vertical';
+    document.querySelector(`input[name="gradient-direction"][value="${savedDirection}"]`).checked = true;
   }
   
   // --- 機能: 現在のフォームの内容から設定オブジェクトを取得 ---
@@ -135,19 +144,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const settings = {};
     Object.keys(designInputs).forEach(key => { settings[key] = designInputs[key].value.trim(); });
     Object.keys(apiInputs).forEach(key => { settings[key] = apiInputs[key].value.trim(); });
-    // ラジオボタンの値を取得
-    settings.gradientDirection = document.querySelector('input[name="gradient-direction"]:checked').value;    return settings;
+    settings.gradientDirection = document.querySelector('input[name="gradient-direction"]:checked').value;
+    return settings;
   }
 
   // --- メインの読み込み処理 ---
   async function loadSettings() {
-    const saved = (await chrome.storage.local.get([SETTINGS_KEY]))[SETTINGS_KEY];
+    const result = await chrome.storage.local.get([SETTINGS_KEY]);
+    const saved = result[SETTINGS_KEY];
     if (saved && Object.keys(saved).length > 0) {
       applySettingsToForm(saved);
     } else {
       const defaults = await getDefaultSettings();
       applySettingsToForm(defaults);
     }
+    // ★ 読み込み完了後に一度スタイルを更新
+    updateOverwriteLabelStyle();
   }
 
   loadSettings();
@@ -161,80 +173,77 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- イベントリスナー: リセットボタン ---
-  resetBtn.addEventListener('click', () => {
-    chrome.storage.local.remove([SETTINGS_KEY], async () => {
-      const defaults = await getDefaultSettings();
-      applySettingsToForm(defaults);
-      showFeedback('設定をリセットしました');
-    });
+  resetBtn.addEventListener('click', async () => {
+    await chrome.storage.local.remove([SETTINGS_KEY]);
+    const defaults = await getDefaultSettings();
+    applySettingsToForm(defaults);
+    showFeedback('設定をリセットしました');
   });
+
+  // --- 機能: チェックボックスのラベルスタイル更新 ---
+  function updateOverwriteLabelStyle() {
+    if (overwriteConfirm.checked) {
+      // チェックされている場合：緑色で太字にする
+      overwriteConfirmLabel.style.color = '#0F9D58';
+      overwriteConfirmLabel.style.fontWeight = 'bold';
+    } else {
+      // チェックされていない場合：元のスタイルに戻す
+      overwriteConfirmLabel.style.color = '#333';
+      overwriteConfirmLabel.style.fontWeight = 'normal';
+    }
+  }
+  overwriteConfirm.addEventListener('change', updateOverwriteLabelStyle);
 
   // --- 機能: ボタンを無効化し、ポート接続を準備する共通関数 ---
   function startProcess(action, payload) {
     const allSettings = getSettingsFromForm();
     
     // 必須項目チェック
-    if (!allSettings.scriptId || !allSettings.deploymentId || !allSettings.aiModel) {// || !allSettings.apiKey) {
+    if (!allSettings.scriptId || !allSettings.deploymentId || !allSettings.aiModel) {
       statusMessage.textContent = "API・連携設定の必須項目を入力してください。";
-      if (!collapsible.classList.contains('active')) {
-        collapsible.click();
-      }
-      return;
-    }
-
-    if (!overwriteConfirm.checked) {
-      statusMessage.textContent = "プロジェクトの上書き許可にチェックを入れてください。";
-      // API設定セクションが開いていなければ開く
       if (!collapsible1.classList.contains('active')) {
         collapsible1.click();
       }
       return;
     }
 
+    if (!overwriteConfirm.checked) {
+      statusMessage.textContent = "プロジェクトの上書き許可にチェックを入れてください。";
+      if (!collapsible1.classList.contains('active')) {
+        collapsible1.click();
+      }
+      overwriteConfirm.focus(); // チェックボックスに画面を移動
+      return;
+    }
+
     if (action === 'generateSlidesWithAI' && !payload.prompt.trim()) {
-        statusMessage.textContent = "プロンプトを入力してください。";
+        statusMessage.textContent = "スライド原稿を入力してください。";
+        userPrompt.focus();
         return;
     }
 
     generateBtn.disabled = true;
     regenerateBtn.disabled = true;
-    statusMessage.textContent = "処理を開始します...";
+    statusMessage.innerHTML = "処理を開始します..."; // innerHTMLで改行<br>にも対応できるように
 
     if (port) port.disconnect();
     port = chrome.runtime.connect({ name: "generate-channel" });
 
-    /*
     port.onMessage.addListener((msg) => {
         statusMessage.innerHTML = msg.message;
         if (msg.status === 'success' || msg.status === 'error') {
             generateBtn.disabled = false;
             regenerateBtn.disabled = false;
-            if (port) port.disconnect();
+            if (port) {
+              port.disconnect();
+              port = null;
+            }
         }
-    });
-    */
-
-    port.onMessage.addListener((msg) => {
-      // 安全な表示方法に変更
-      statusMessage.textContent = ''; // 表示エリアをクリア
-      const messageLines = msg.message.split('<br>'); // <br>で分割
-      messageLines.forEach((line, index) => {
-          if (index > 0) {
-              statusMessage.appendChild(document.createElement('br'));
-          }
-          statusMessage.appendChild(document.createTextNode(line));
-      });
-  
-      if (msg.status === 'success' || msg.status === 'error') {
-          generateBtn.disabled = false;
-          regenerateBtn.disabled = false;
-          if (port) port.disconnect();
-      }
     });
 
     port.onDisconnect.addListener(() => {
-        if (!statusMessage.textContent.startsWith("完了") && !statusMessage.textContent.startsWith("エラー")) {
-            statusMessage.textContent = "エラー: 接続が予期せず切れました。";
+        if (statusMessage.innerHTML.includes("処理中") || statusMessage.innerHTML.includes("開始します")) {
+            statusMessage.innerHTML = "エラー: 接続が予期せず切れました。";
         }
         generateBtn.disabled = false;
         regenerateBtn.disabled = false;
@@ -244,8 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
     port.postMessage({ action, ...payload });
   }
 
-
-  // --- イベントリスナー: 生成ボタンクリック ---
+  // --- イベントリスナー: 各種実行ボタン ---
   generateBtn.addEventListener('click', () => {
     startProcess('generateSlidesWithAI', {
         prompt: userPrompt.value,
@@ -253,7 +261,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- イベントリスナー: 再生成ボタンクリック ---
   regenerateBtn.addEventListener('click', () => {
     startProcess('regenerateWithDesign', {
         settings: getSettingsFromForm()
@@ -261,24 +268,18 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   revokeTokenBtn.addEventListener('click', () => {
-    statusMessage.textContent = "認証情報をリセットしています...";
-    // background.jsにトークン削除を依頼
+    statusMessage.innerHTML = "認証情報をリセットしています...";
     chrome.runtime.sendMessage({ action: "revokeToken" }, (response) => {
-
       if (chrome.runtime.lastError) {
-        // lastErrorが存在する場合（getAuthTokenが失敗した場合など）でも、
-        // ユーザーにとってはリセット成功と同じなので、成功メッセージを表示する。
         console.warn("トークンのリセット中に想定内のエラー:", chrome.runtime.lastError.message);
-        statusMessage.textContent = "認証をリセットしました。次回実行時に再認証してください。";
+        statusMessage.innerHTML = "認証をリセットしました。<br>次回実行時に再認証してください。";
         return;
       }
-
-      if (response.success) {
-        statusMessage.textContent = "認証をリセットしました。次回実行時に再認証してください。";
+      if (response && response.success) {
+        statusMessage.innerHTML = "認証をリセットしました。<br>次回実行時に再認証してください。";
       } else {
-        statusMessage.textContent = "リセットに失敗しました。";
+        statusMessage.innerHTML = "リセットに失敗しました。";
       }
     });
   });
-
 });

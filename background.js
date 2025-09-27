@@ -1,10 +1,10 @@
-// background.js (2.gs連携バージョン・省略なし完成版)
+// background.js (バグ修正版・省略なし完成版)
 
 // --- デフォルト設定 ---
 const DEFAULT_SETTINGS = {
   scriptId: "",
   deploymentId: "",
-  aiModel: 'gemini-2.5-flash-lite'
+  aiModel: 'gemini-1.5-flash-latest'
 };
 
 let activePort = null;
@@ -80,20 +80,14 @@ function isValidColorCode(string) {
   if (!string) return false;
   return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(string);
 }
-function escapeTemplateLiteral(str) {
-  if (!str) return '';
-  return str.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
-}
 
-
-
+// --- GASコード生成ヘルパー関数 ---
 function createFile0Source(baseSource, settings) {
   let source = baseSource;
   if (settings) {
-      // ★修正点: JSON.stringifyを使用して安全に文字列リテラルを生成する
-      const footerText = JSON.stringify(settings.footerText || '');
-      const headerLogo = JSON.stringify(isValidHttpUrl(settings.headerLogo) ? settings.headerLogo : '');
-      const closingLogo = JSON.stringify(isValidHttpUrl(settings.closingLogo) ? settings.closingLogo : '');
+      const footerText = JSON.stringify(settings.footerText || `© ${new Date().getFullYear()} Google Inc.`);
+      const headerLogo = JSON.stringify(isValidHttpUrl(settings.headerLogo) ? settings.headerLogo : 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png');
+      const closingLogo = JSON.stringify(isValidHttpUrl(settings.closingLogo) ? settings.closingLogo : 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png');
       const primaryColor = JSON.stringify(isValidColorCode(settings.primaryColor) ? settings.primaryColor : '#4285F4');
       const fontColor = JSON.stringify(isValidColorCode(settings.fontColor) ? settings.fontColor : '#333333');
       const bgStartColor = JSON.stringify(isValidColorCode(settings.bgStartColor) ? settings.bgStartColor : '#FFFFFF');
@@ -101,12 +95,10 @@ function createFile0Source(baseSource, settings) {
       const fontFamily = JSON.stringify(settings.fontFamily || 'Arial');
       const gradientDirection = JSON.stringify(settings.gradientDirection || 'vertical');
       
-      // isValidHttpUrlの結果に基づいて 'null' (文字列ではなく予約語) またはURL文字列を生成する
       const titleBg = isValidHttpUrl(settings.titleBg) ? JSON.stringify(settings.titleBg) : 'null';
       const contentBg = isValidHttpUrl(settings.contentBg) ? JSON.stringify(settings.contentBg) : 'null';
       const closingBg = isValidHttpUrl(settings.closingBg) ? JSON.stringify(settings.closingBg) : 'null';
 
-      // ★修正点: 置換処理を修正後の変数で行う
       source = source.replace(/const str_FOOTER_TEXT = `.*`;/, `const str_FOOTER_TEXT = ${footerText};`);
       source = source.replace(/const str_LOGOS_header= '.*'/, `const str_LOGOS_header= ${headerLogo}`);
       source = source.replace(/const str_LOGOS_closing= '.*'/, `const str_LOGOS_closing= ${closingLogo}`);
@@ -125,33 +117,26 @@ function createFile0Source(baseSource, settings) {
 
 // --- メインの処理フロー関数 ---
 
-/**
- * 「全自動で生成」ボタンの処理
- */
-/**
- * 「全自動で生成」ボタンの処理
- */
 async function handleGenerateNew(userPrompt, settings) {
   const startTime = new Date().getTime();
   try {
     sendProgress({ status: 'progress', message: 'GASプロジェクトを準備中...' });
     const token = await getAuthToken();
 
-    // ===================================================================
-    // ステップ1: デザイン設定を反映したプロジェクトを一度デプロイする
-    // ===================================================================
-    const baseFile0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
-    const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
-    const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
-    
-    const file0Source = createFile0Source(baseFile0Source, settings);
-    
-    // この時点では2.gsは空か、古い内容のままで良い
+    // ステップ1: デザイン設定を反映したプロジェクトを一度デプロイ
+    const [baseFile0, file1, file3, file4] = await Promise.all([
+        fetch(chrome.runtime.getURL('0.gs')).then(res => res.text()),
+        fetch(chrome.runtime.getURL('1.gs')).then(res => res.text()),
+        fetch(chrome.runtime.getURL('3.gs')).then(res => res.text()),
+        fetch(chrome.runtime.getURL('4.gs')).then(res => res.text())
+    ]);
+
+    const file0 = createFile0Source(baseFile0, settings);
     const initialSlideData = "const slideData = [];";
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中(1/2)...' });
-    let newSource = createProjectSource(file0Source, file1Source, initialSlideData, file3Source);
-    await updateGasProject(settings.scriptId, token, newSource);
+    let projectSource = createProjectSource(file0, file1, initialSlideData, file3, file4);
+    await updateGasProject(settings.scriptId, token, projectSource);
 
     sendProgress({ status: 'progress', message: '新バージョンを作成中(1/2)...' });
     let versionResponse = await createNewVersion(settings.scriptId, token);
@@ -160,9 +145,7 @@ async function handleGenerateNew(userPrompt, settings) {
     sendProgress({ status: 'progress', message: `デプロイを更新中(1/2) v${newVersionNumber}...` });
     await updateDeployment(settings.scriptId, settings.deploymentId, token, newVersionNumber);
 
-    // ===================================================================
     // ステップ2: 更新されたGASを呼び出し、AIにslideDataを生成させる
-    // ===================================================================
     sendProgress({ status: 'progress', message: 'AIが構成案を作成中...'});
     const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
     const payload = {
@@ -171,32 +154,41 @@ async function handleGenerateNew(userPrompt, settings) {
       aiModel: settings.aiModel
     };
     const response = await executeWebApp(WEB_APP_URL, token, payload);
-    let slideDataString = response.slideDataString;
+    const slideDataString = response.slideDataString;
 
     if (!slideDataString) {
       throw new Error("AIからのslideDataの取得に失敗しました。");
     }
+    
+    // ===================================================================
+    // ★★★★★★★★★★★★★★★★★★★ 変更点 ★★★★★★★★★★★★★★★★★★★★
+    // 正規表現に頼らない、より堅牢な方法で配列部分を抽出する
+    // ===================================================================
+    let rawString = slideDataString;
+    // 1. Markdownのコードフェンスなどを除去
+    rawString = rawString.trim().replace(/^```(javascript|json)?/, '').replace(/```$/, '').trim();
+    
+    // 2. 配列の開始位置を探す
+    const startIndex = rawString.indexOf('[');
+    // 3. 配列の終了位置を探す
+    const endIndex = rawString.lastIndexOf(']');
 
-    // 1. 前後のMarkdownコードフェンスを削除
-    slideDataString = slideDataString.replace(/^```javascript\s*/, '').replace(/```\s*$/, '');
-
-    // 2. 念のため、前後の空白を削除
-    slideDataString = slideDataString.trim();
-
-    // 応答文字列から `const slideData = [...]` の部分だけを安全に抽出する
-    const match = slideDataString.match(/const slideData\s*=\s*(\[[\s\S]*\]);?/);
-    if (!match || !match[1]) {
-        throw new Error("AIが生成したslideDataの形式が不正です (配列が見つかりません)。");
+    if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
+        console.error("解析失敗した文字列:", slideDataString);
+        throw new Error("AIが生成したslideDataの形式が不正です (配列 `[...]` を見つけられませんでした)。");
     }
-    // 抽出した配列部分だけを使い、再構成する
-    const sanitizedSlideDataString = `const slideData = ${match[1]};`;
 
+    // 4. 配列部分だけを正確に切り出す
+    const arrayContent = rawString.substring(startIndex, endIndex + 1);
+
+    // 5. 最終的なコードとして再構築する
+    const sanitizedSlideDataString = `const slideData = ${arrayContent};`;
     // ===================================================================
+
     // ステップ3: AIが生成したslideData(2.gs)でプロジェクトを再度更新・実行
-    // ===================================================================
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中(2/2)...' });
-    newSource = createProjectSource(file0Source, file1Source, sanitizedSlideDataString, file3Source);
-    await updateGasProject(settings.scriptId, token, newSource);
+    projectSource = createProjectSource(file0, file1, sanitizedSlideDataString, file3, file4);
+    await updateGasProject(settings.scriptId, token, projectSource);
 
     sendProgress({ status: 'progress', message: '新バージョンを作成中(2/2)...' });
     versionResponse = await createNewVersion(settings.scriptId, token);
@@ -222,27 +214,25 @@ async function handleGenerateNew(userPrompt, settings) {
   }
 }
 
-/**
- * 「デザインを反映して再生成」ボタンの処理
- */
 async function handleRegenerate(settings) {
   const startTime = new Date().getTime();
   try {
     sendProgress({ status: 'progress', message: 'GASプロジェクトを準備中...' });
     const token = await getAuthToken();
 
-    // 1. 既存の2.gsの内容を読み出す
     const slideDataString = await getProjectFileContent(settings.scriptId, token, '2');
 
-    // 2. 新しいデザインと既存の2.gsでプロジェクトを更新
-    const baseFile0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
-    const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
-    const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
-    const file0Source = createFile0Source(baseFile0Source, settings);
+    const [baseFile0, file1, file3, file4] = await Promise.all([
+        fetch(chrome.runtime.getURL('0.gs')).then(res => res.text()),
+        fetch(chrome.runtime.getURL('1.gs')).then(res => res.text()),
+        fetch(chrome.runtime.getURL('3.gs')).then(res => res.text()),
+        fetch(chrome.runtime.getURL('4.gs')).then(res => res.text())
+    ]);
+    const file0 = createFile0Source(baseFile0, settings);
     
     sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...' });
-    const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
-    await updateGasProject(settings.scriptId, token, newSource);
+    const projectSource = createProjectSource(file0, file1, slideDataString, file3, file4);
+    await updateGasProject(settings.scriptId, token, projectSource);
 
     sendProgress({ status: 'progress', message: '新バージョンを作成中...' });
     const versionResponse = await createNewVersion(settings.scriptId, token);
@@ -251,7 +241,6 @@ async function handleRegenerate(settings) {
     sendProgress({ status: 'progress', message: `デプロイを更新中 v${newVersionNumber}...` });
     await updateDeployment(settings.scriptId, settings.deploymentId, token, newVersionNumber);
     
-    // 3. スライド生成を実行
     sendProgress({ status: 'progress', message: 'スライドを再生成しています...' });
     const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
     const finalPayload = { action: 'generate_slides' };
@@ -270,46 +259,6 @@ async function handleRegenerate(settings) {
   }
 }
 
-/**
- * プロジェクトを更新し、スライド生成を実行する共通関数
- */
-async function updateAndExecuteProject(settings, token, slideDataString, startTime) {
-    sendProgress({ status: 'progress', message: 'GASプロジェクトの準備中...' });
-
-    const baseFile0Source = await fetch(chrome.runtime.getURL('0.gs')).then(res => res.text());
-    const file1Source = await fetch(chrome.runtime.getURL('1.gs')).then(res => res.text());
-    const file3Source = await fetch(chrome.runtime.getURL('3.gs')).then(res => res.text());
-    
-    const file0Source = createFile0Source(baseFile0Source, settings);
-    
-    sendProgress({ status: 'progress', message: 'GASプロジェクトを更新中...' });
-    const newSource = createProjectSource(file0Source, file1Source, slideDataString, file3Source);
-    await updateGasProject(settings.scriptId, token, newSource);
-
-    sendProgress({ status: 'progress', message: '新バージョンを作成中...' });
-    const versionResponse = await createNewVersion(settings.scriptId, token);
-    const newVersionNumber = versionResponse.versionNumber;
-
-    sendProgress({ status: 'progress', message: `デプロイを更新中 (v${newVersionNumber})...` });
-    await updateDeployment(settings.scriptId, settings.deploymentId, token, newVersionNumber);
-
-    sendProgress({ status: 'progress', message: 'スライドを生成しています...' });
-    const WEB_APP_URL = `https://script.google.com/macros/s/${settings.deploymentId}/exec`;
-    const finalPayload = { action: 'generate_slides' };
-    const result = await executeWebApp(WEB_APP_URL, token, finalPayload);
-    
-    if (result.status === 'error') {
-      throw new Error(`GAS_ERROR: ${result.message}`);
-    }
-
-    const endTime = new Date().getTime();
-    const elapsedTimeInSeconds = (endTime - startTime) / 1000;
-    sendProgress({ status: 'success', message:  result.message + `<br>[${elapsedTimeInSeconds.toFixed(2)} 秒]` });
-}
-
-/**
- * 共通エラーハンドリング関数
- */
 function handleError(error) {
     console.error("【CRITICAL ERROR】:", error);
     
@@ -318,22 +267,17 @@ function handleError(error) {
 
     if (errorMessage.startsWith('GAS_ERROR:')) {
         const gasErrorMessage = errorMessage.replace('GAS_ERROR: ', '');
-        userMessage = `エラー: ${gasErrorMessage}`;
-        if (gasErrorMessage.includes('APIキー設定に問題があります')) {
-            userMessage += '<br><br><b>対処法:</b><br>GASプロジェクトの[カスタム設定] > [設定] > [Gemini APIキー] から正しいキーを設定してください。';
-        } else if (gasErrorMessage.includes('AIが不正な形式')) {
-            userMessage += '<br><br><b>対処法:</b><br>プロンプトを少し変更して再度お試しください。';
-        } else if (gasErrorMessage.includes('セキュリティ検証に失敗')) {
-            userMessage += '<br><br><b>対処法:</b><br>プロンプトに不正な文字が含まれている可能性があります。内容を確認してください。';
-        }
+        userMessage = `GAS側エラー: ${gasErrorMessage}`;
     } else if (errorMessage.includes('401') || errorMessage.includes('invalid authentication credentials')) {
-        userMessage = 'Googleアカウントの認証に失敗しました。<br><br><b>対処法:</b><br>API・GAS設定の「認証をリセット」ボタンを押してから、再度お試しください。';
+        userMessage = 'Googleアカウントの認証に失敗しました。<br><br><b>対処法:</b><br>API・GAS設定の「認証をリセット」ボタンを押し、再度お試しください。';
     } else if (errorMessage.includes('403') || errorMessage.includes('caller does not have permission')) {
         userMessage = 'アクセス権限がありません。<br><br><b>対処法:</b><br>Script IDやDeployment IDが正しいか、共有設定が適切か確認してください。';
     } else if (errorMessage.includes('JSON解析に失敗')) {
         userMessage = 'GASからの応答が予期せぬ形式でした。ページを再読み込みするか、開発者にご連絡ください。';
-    } else if (errorMessage.includes('Script ID not found')) {
+    } else if (errorMessage.includes('Script ID not found') || errorMessage.includes('見つかりません')) {
         userMessage = '指定されたScript IDが見つかりません。';
+    } else {
+        userMessage = error.message;
     }
     
     sendProgress({ status: 'error', message: userMessage });
@@ -361,23 +305,24 @@ async function getProjectFileContent(scriptId, token, fileName) {
 function getAuthToken() {
   return new Promise((resolve, reject) => {
     chrome.identity.getAuthToken({ interactive: true }, (token) => {
-      if (chrome.runtime.lastError) { reject(chrome.runtime.lastError); } else { resolve(token); }
+      if (chrome.runtime.lastError) { reject(new Error(chrome.runtime.lastError.message)); } else { resolve(token); }
     });
   });
 }
 
-function createProjectSource(file0, file1, slideDataString, file3) {
+function createProjectSource(file0, file1, slideDataString, file3, file4) {
   const manifestContent = `{
     "timeZone": "Asia/Tokyo",
     "dependencies": {},
     "exceptionLogging": "STACKDRIVER",
     "runtimeVersion": "V8",
-    "webapp": { "executeAs": "USER_DEPLOYING", "access": "MYSELF" },
+    "webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" },
     "oauthScopes": [
       "https://www.googleapis.com/auth/presentations",
       "https://www.googleapis.com/auth/script.projects",
       "https://www.googleapis.com/auth/script.deployments",
       "https://www.googleapis.com/auth/script.external_request",
+      "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/drive.file"
     ]
   }`;
@@ -387,7 +332,8 @@ function createProjectSource(file0, file1, slideDataString, file3) {
       { name: "0", type: "SERVER_JS", source: file0 },
       { name: "1", type: "SERVER_JS", source: file1 },
       { name: "2", type: "SERVER_JS", source: slideDataString },
-      { name: "3", type: "SERVER_JS", source: file3 }
+      { name: "3", type: "SERVER_JS", source: file3 },
+      { name: "4", type: "SERVER_JS", source: file4 }
     ]
   };
 }
@@ -432,6 +378,7 @@ async function executeWebApp(url, token, payload) {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
+    redirect: 'follow',
     body: JSON.stringify(payload)
   });
 
