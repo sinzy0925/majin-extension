@@ -679,70 +679,7 @@ function createSectionSlide(slide, data, layout, pageNum) {
   addCucFooter(slide, layout, pageNum);
 }
 
-function createContentSlide(slide, data, layout, pageNum) {
-  slide.getBackground().setTransparent();
-  drawSlideBackground(slide, 'content',layout);
-  drawStandardTitleHeader(slide, layout, 'contentSlide', data.title);
-  const dy = 0; 
 
-  const isAgenda = isAgendaTitle(data.title || '');
-  let points = Array.isArray(data.points) ? data.points.slice(0) : [];
-  if (isAgenda && (!points || points.length === 0)) {
-    // slideDataをグローバル変数として持たないように修正
-    // points = buildAgendaFromSlideData();
-    if (points.length === 0) points = ['本日の目的', '進め方', '次のアクション'];
-  }
-
-  const hasImages = Array.isArray(data.images) && data.images.length > 0;
-  const isTwo = !!(data.twoColumn || data.columns);
-
-  if ((isTwo && (data.columns || points)) || (!isTwo && points && points.length > 0)) {
-    if (isTwo) {
-      let L = [], R = [];
-      if (Array.isArray(data.columns) && data.columns.length === 2) {
-        L = data.columns[0] || []; R = data.columns[1] || [];
-      } else {
-        const mid = Math.ceil(points.length / 2);
-        L = points.slice(0, mid); R = points.slice(mid);
-      }
-      const leftRect = offsetRect(layout.getRect('contentSlide.twoColLeft'), 0, dy);
-      const rightRect = offsetRect(layout.getRect('contentSlide.twoColRight'), 0, dy);
-      const leftShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, leftRect.left, leftRect.top, leftRect.width, leftRect.height);
-      const rightShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, rightRect.left, rightRect.top, rightRect.width, rightRect.height);
-      setBulletsWithInlineStyles(leftShape, L);
-      setBulletsWithInlineStyles(rightShape, R);
-    } else {
-      const bodyRect = offsetRect(layout.getRect('contentSlide.body'), 0, dy);
-      if (isAgenda) {
-        drawNumberedItems(slide, layout, bodyRect, points);
-      } else {
-        const bodyShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, bodyRect.left, bodyRect.top, bodyRect.width, bodyRect.height);
-        setBulletsWithInlineStyles(bodyShape, points);
-      }
-    }
-  }
-
-  if (hasImages) {
-    const area = offsetRect(layout.getRect('contentSlide.body'), 0, dy);
-    renderImagesInArea(slide, layout, area, normalizeImages(data.images));
-  }
-
-  drawBottomBarAndFooter(slide, layout, pageNum);
-}
-
-function createCompareSlide(slide, data, layout, pageNum) {
-  slide.getBackground().setTransparent();
-  drawSlideBackground(slide, 'content',layout);
-  drawStandardTitleHeader(slide, layout, 'compareSlide', data.title);
-  const dy = drawSubheadIfAny(slide, layout, 'compareSlide', data.subhead);
-
-  const leftBox = offsetRect(layout.getRect('compareSlide.leftBox'), 0, dy);
-  const rightBox = offsetRect(layout.getRect('compareSlide.rightBox'), 0, dy);
-  drawCompareBox(slide, leftBox, data.leftTitle || '選択肢A', data.leftItems || []);
-  drawCompareBox(slide, rightBox, data.rightTitle || '選択肢B', data.rightItems || []);
-
-  drawBottomBarAndFooter(slide, layout, pageNum);
-}
 
 function drawCompareBox(slide, rect, title, items) {
   const box = slide.insertShape(SlidesApp.ShapeType.RECTANGLE, rect.left, rect.top, rect.width, rect.height);
@@ -916,33 +853,6 @@ function createDiagramSlide(slide, data, layout, pageNum) {
   drawBottomBarAndFooter(slide, layout, pageNum);
 }
 
-function createSectionSlide(slide, data, layout, pageNum) {
-  //slide.getBackground().setSolidFill(CONFIG.COLORS.background_gray);
-  slide.getBackground().setTransparent();
-  drawSlideBackground(slide, 'content',layout);
-
-  // 透かし番号：sectionNo > タイトル先頭の数字 > 自動連番
-  __SECTION_COUNTER++;
-  const parsedNum = (() => {
-    if (Number.isFinite(data.sectionNo)) return Number(data.sectionNo);
-    const m = String(data.title || '').match(/^\s*(\d+)[\.．]/);
-    return m ? Number(m[1]) : __SECTION_COUNTER;
-  })();
-  const num = String(parsedNum).padStart(2, '0');
-
-  const ghostRect = layout.getRect('sectionSlide.ghostNum');
-  const ghost = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, ghostRect.left, ghostRect.top, ghostRect.width, ghostRect.height);
-  ghost.getText().setText(num);
-  applyTextStyle(ghost.getText(), { size: CONFIG.FONTS.sizes.ghostNum, color: CONFIG.COLORS.ghost_gray, bold: true });
-  try { ghost.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE); } catch(e) {}
-
-  const titleRect = layout.getRect('sectionSlide.title');
-  const titleShape = slide.insertShape(SlidesApp.ShapeType.TEXT_BOX, titleRect.left, titleRect.top, titleRect.width, titleRect.height);
-  titleShape.setContentAlignment(SlidesApp.ContentAlignment.MIDDLE);
-  setStyledText(titleShape, data.title, { size: CONFIG.FONTS.sizes.sectionTitle, bold: true, align: SlidesApp.ParagraphAlignment.CENTER });
-
-  addCucFooter(slide, layout, pageNum);
-}
 
 // content（1/2カラム + 小見出し + 画像）
 function createContentSlide(slide, data, layout, pageNum) {
