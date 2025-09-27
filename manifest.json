@@ -3,16 +3,18 @@
   "name": "スライド自動生成",
   "version": "5.0",
   "description": "AIと連携してGoogleスライドを自動生成します。",
-  "action": {
-    "default_popup": "popup.html"
-  },
+  "action": {},
   "background": {
     "service_worker": "background.js"
   },
   "permissions": [
     "identity",
-    "storage" 
+    "storage",
+    "sidePanel" 
   ],
+  "side_panel": {
+    "default_path": "popup.html"
+  },
   "host_permissions": [
     "https://accounts.google.com/",
     "https://script.googleapis.com/",

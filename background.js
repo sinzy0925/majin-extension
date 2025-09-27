@@ -27,6 +27,11 @@ chrome.runtime.onConnect.addListener((port) => {
   });
 });
 
+chrome.action.onClicked.addListener((tab) => {
+  // 現在のタブでサイドパネルを開閉する
+  chrome.sidePanel.open({ windowId: tab.windowId });
+});
+
 // --- メッセージリスナー (popup.js & 内部からの要求に応える) ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'getDefaultApiSettings') {
