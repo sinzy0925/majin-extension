@@ -4,7 +4,7 @@
 const DEFAULT_SETTINGS = {
   scriptId: "",
   deploymentId: "",
-  aiModel: 'gemini-1.5-flash-latest'
+  aiModel: 'gemini-2.5-flash-lite'
 };
 
 let activePort = null;

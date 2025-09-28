@@ -43,8 +43,14 @@ function doPost(e) {
         throw new Error("slideDataがプロジェクト内(2.gs)に見つかりません。");
       }
       
-      validateSlideData(slideData); // この関数は3.gsに残す
-      generatePresentation(slideData); // この関数も3.gsに残す
+      customLogger("slideDataのサニタイズ処理を実行します...");
+      const sanitizedSlideData = sanitizeSlideData(slideData);
+      
+      // サニタイズされた安全なデータで検証と生成を行う
+      validateSlideData(sanitizedSlideData);
+      generatePresentation(sanitizedSlideData);
+      //validateSlideData(slideData); // この関数は3.gsに残す
+      //generatePresentation(slideData); // この関数も3.gsに残す
 
       return ContentService.createTextOutput(JSON.stringify({ 
           status: "success", 
@@ -76,6 +82,43 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
+
+
+/**
+ * slideData内の全ての文字列を再帰的に走査し、
+ * 禁止文字 '<' と '>' を安全な矢印記号に置換するサニタイズ関数
+ * @param {*} data - slideDataオブジェクトまたはその一部（文字列、配列、オブジェクトなど）
+ * @returns {*} - サニタイズ（無害化）されたデータ
+ */
+function sanitizeSlideData(data) {
+  // 1. データが文字列の場合（再帰の終点）
+  if (typeof data === 'string') {
+    // replaceAllを使って、見つかった全ての '<' と '>' を置換して返す
+    return data.replaceAll('<', '←').replaceAll('>', '→');
+  }
+
+  // 2. データが配列の場合
+  if (Array.isArray(data)) {
+    // 配列の各要素に対して、自分自身（sanitizeSlideData）を呼び出して新しい配列を作成する
+    return data.map(item => sanitizeSlideData(item));
+  }
+
+  // 3. データがオブジェクトの場合（ただしnullは除く）
+  if (typeof data === 'object' && data !== null) {
+    const newObj = {};
+    // オブジェクトの各プロパティに対してループ
+    for (const key in data) {
+      // プロパティの値に対して、自分自身（sanitizeSlideData）を呼び出す
+      newObj[key] = sanitizeSlideData(data[key]);
+    }
+    return newObj;
+  }
+
+  // 4. 文字列、配列、オブジェクト以外（数値、真偽値など）の場合
+  // 何もせず、そのままのデータを返す
+  return data;
+}
+
 
 /**
  * 【強化版】AIが生成したslideDataオブジェクトの構造と内容を検証する関数
