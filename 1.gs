@@ -156,7 +156,7 @@ cardMin_h_px: 48, cardMax_h_px: 70, arrow_h_px: 10, arrowGap_px: 8
 
 LOGOS: {
 header: str_LOGOS_header,
-closing: str_LOGOS_header
+closing: str_LOGOS_closing
 },
 
 BACKGROUNDS: {

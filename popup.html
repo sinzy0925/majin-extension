@@ -129,6 +129,10 @@
     <h4 class="collapsible3">▼ 背景画像設定</h4>
     <div class="collapsible3-content">
       <div class="settings-item vertical-item">
+        <label for="title-head">Canvaなどで作成した画像のURLや、以下のギャラりーからURLをコピーしてください。</label>
+        <b><a href="https://sinzy0925.github.io/logo/" target="_blank">ギャラリー</a></b>
+      </div>
+      <div class="settings-item vertical-item">
         <label for="title-bg">タイトル頁 背景画像URL</label>
         <input type="text" id="title-bg">
       </div>
@@ -159,7 +163,10 @@
           <option value="Roboto">Roboto (欧文向け)</option>
         </select>
       </div>
-
+      <div class="settings">
+        <label for="original-font-family">オリジナルフォント (優先):</label> <!-- for属性とラベル名を変更 -->
+        <input type="text" id="original-font-family" placeholder="例: Meiryo"> <!-- 新しいidを割り当て -->
+      </div>
 
       <div class="settings">
         <label for="font-color">フォントカラー:</label>
@@ -169,6 +176,7 @@
         <label for="primary-color">ラインカラー:</label>
         <input type="color" id="primary-color" value="#4285F4">
       </div>
+
       <div class="settings">
         <label for="bg-gradient-start-color">背景グラデーション[start]:</label>
         <input type="color" id="bg-gradient-start-color" value="#FFFFFF">

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     primaryColor: document.getElementById('primary-color'),
     fontColor: document.getElementById('font-color'),
     fontFamily: document.getElementById('font-family'),
+    originalFontFamily: document.getElementById('original-font-family'),
     bgStartColor: document.getElementById('bg-gradient-start-color'),
     bgEndColor: document.getElementById('bg-gradient-end-color'),
   };
@@ -97,10 +98,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- 機能: フィードバックメッセージを表示 ---
   function showFeedback(message, isError = false) {
-    feedbackMessage.textContent = message;
-    feedbackMessage.style.color = isError ? '#D93025' : '#0F9D58';
+    statusMessage.textContent = message;
+    statusMessage.style.color = isError ? '#D93025' : '#0F9D58';
     setTimeout(() => {
-      feedbackMessage.textContent = '';
+      statusMessage.textContent = '';
     }, 4000);
   }
 
@@ -130,24 +131,57 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- 機能: 設定オブジェクトをフォームに反映 ---
-  function applySettingsToForm(settings) {
-    if (!settings) return;
-    Object.keys(designInputs).forEach(key => { if(designInputs[key]) designInputs[key].value = settings[key] || ''; });
-    Object.keys(apiInputs).forEach(key => { if(apiInputs[key]) apiInputs[key].value = settings[key] || ''; });
-    // ラジオボタンの状態も復元
-    const savedDirection = settings.gradientDirection || 'vertical';
-    document.querySelector(`input[name="gradient-direction"][value="${savedDirection}"]`).checked = true;
-  }
-  
-  // --- 機能: 現在のフォームの内容から設定オブジェクトを取得 ---
-  function getSettingsFromForm() {
-    const settings = {};
-    Object.keys(designInputs).forEach(key => { settings[key] = designInputs[key].value.trim(); });
-    Object.keys(apiInputs).forEach(key => { settings[key] = apiInputs[key].value.trim(); });
-    settings.gradientDirection = document.querySelector('input[name="gradient-direction"]:checked').value;
-    return settings;
-  }
+// --- 機能: 設定オブジェクトをフォームに反映 ---
+function applySettingsToForm(settings) {
+  if (!settings) return;
 
+  // ★★★ ここからが変更箇所 ★★★
+  // designInputsからoriginalFontFamilyを一旦除外して値を設定
+  Object.keys(designInputs).filter(k => k !== 'originalFontFamily').forEach(key => {
+      if(designInputs[key] && settings[key] !== undefined) {
+          designInputs[key].value = settings[key];
+      }
+  });
+  // originalFontFamilyは個別で設定
+  if (designInputs.originalFontFamily) {
+      designInputs.originalFontFamily.value = settings.originalFontFamily || '';
+  }
+  // ★★★ ここまで ★★★
+  
+  Object.keys(apiInputs).forEach(key => { if(apiInputs[key]) apiInputs[key].value = settings[key] || ''; });
+  // ラジオボタンの状態も復元
+  const savedDirection = settings.gradientDirection || 'vertical';
+  document.querySelector(`input[name="gradient-direction"][value="${savedDirection}"]`).checked = true;
+}
+
+// --- 機能: 現在のフォームの内容から設定オブジェクトを取得 ---
+function getSettingsFromForm() {
+  const settings = {};
+  // designInputsからoriginalFontFamilyを除くキーをループ
+  Object.keys(designInputs).filter(k => k !== 'originalFontFamily').forEach(key => {
+      if(designInputs[key]) {
+          settings[key] = designInputs[key].value.trim();
+      }
+  });
+
+  // ★★★ ここからが変更箇所 ★★★
+  const originalFont = designInputs.originalFontFamily.value.trim();
+  if (originalFont) {
+    // オリジナルフォントに入力があれば、そちらを優先してfontFamilyに設定
+    settings.fontFamily = originalFont;
+  } else {
+    // なければ、ドロップダウンの値をfontFamilyに設定
+    settings.fontFamily = designInputs.fontFamily.value.trim();
+  }
+  // ★★★ ここまで ★★★
+
+  // どのオリジナルフォントが設定されたかを保存しておく
+  settings.originalFontFamily = originalFont;
+
+  Object.keys(apiInputs).forEach(key => { settings[key] = apiInputs[key].value.trim(); });
+  settings.gradientDirection = document.querySelector('input[name="gradient-direction"]:checked').value;
+  return settings;
+}
   // --- メインの読み込み処理 ---
   async function loadSettings() {
     const result = await chrome.storage.local.get([SETTINGS_KEY]);

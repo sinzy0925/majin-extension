@@ -10,11 +10,11 @@ const str_FOOTER_TEXT = `© ${new Date().getFullYear()} Google Inc.`;
 
 // 各スライドのヘッダーに表示するロゴ画像のURLの初期値を定義します。
 // [拡張機能の場所: ロゴ・フッターテキスト設定 > ヘッダーロゴURL]
-const str_LOGOS_header= 'https://upload.wikimedia.org/wikipedia.commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png';
+const str_LOGOS_header= 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Google_logo_%282013-2015%29.svg/1920px-Google_logo_%282013-2015%29.svg.png';
 
 // 最終ページ（クロージングスライド）に表示するロゴ画像のURLの初期値を定義します。
 // [拡張機能の場所: ロゴ・フッターテキスト設定 > クロージングロゴURL]
-const str_LOGOS_closing= 'https://upload.wikimedia.org/wikipedia.commons/thumb/2/2f/Google_2015_logo.svg/640px-Google_2015_logo.svg.png';
+const str_LOGOS_closing= 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/800px-Google_Chrome_icon_%28February_2022%29.svg.png';
 
 // スライドデザインのテーマカラー（主要な色、例: タイトル下の線など）の初期値を定義します。(#4285F4はGoogleブルー)
 // [拡張機能の場所: カラー設定 > ラインカラー]
