@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "爆速まじん式AIスライド",
+  "version": "5.0",
+  "description": "AIと連携してGoogleスライドを自動生成します。",
+  "action": {},
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "identity",
+    "storage",
+    "sidePanel" 
+  ],
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "host_permissions": [
+    "https://accounts.google.com/",
+    "https://script.googleapis.com/",
+    "https://script.google.com/"
+  ],
+  "oauth2": {
+    "client_id": "__OAUTH_CLIENT_ID__",
+    "scopes": [
+      "https://www.googleapis.com/auth/presentations",
+      "https://www.googleapis.com/auth/script.projects",
+      "https://www.googleapis.com/auth/script.deployments",
+      "https://www.googleapis.com/auth/script.external_request",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://accounts.google.com/ https://script.googleapis.com/ https://script.google.com/ https://script.googleusercontent.com/;"
+  }
+}

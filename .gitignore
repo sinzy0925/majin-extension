@@ -1,0 +1,9 @@
+# 秘密のファイル
+.env
+
+# ビルド成果物
+dist/
+majin-extension.zip
+
+# Node.jsの依存関係ファイル
+node_modules/
