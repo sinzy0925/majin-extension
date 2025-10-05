@@ -21,7 +21,7 @@
     "https://script.google.com/"
   ],
   "oauth2": {
-    "client_id": "77855084094-c3jal48g1hd0emb487ggobtakrpsk6a2.apps.googleusercontent.com",
+    "client_id": "ご自身のOAuth2.0クライアントIDに変更してください。",
     "scopes": [
       "https://www.googleapis.com/auth/presentations",
       "https://www.googleapis.com/auth/script.projects",

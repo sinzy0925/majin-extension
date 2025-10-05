@@ -29,8 +29,7 @@ HARDCODED_EXCLUDE_PATTERNS = [
     "test1/",         # test1/フォルダを除外 
     "build/",
     "insta/*",
-    "bin/",
-    "bup/",         
+    "bin/",      
     "dist/",
     "venv*",         # venv, venv312 などにマッチ
     ".git/",
